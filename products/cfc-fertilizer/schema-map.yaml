@@ -1,0 +1,23 @@
+# CFC Fertilizer schema map — machine-readable form.
+#
+# STATUS: placeholder. schema-map.md (in this folder) is the authoritative,
+# human-written source right now. This file will be filled in once the
+# generic read-tool engine's config schema is designed (next step after
+# scaffolding) — each read tool will get a name, parameters, and a
+# parameterized SQL template here, driven by the ground rules and table
+# notes already captured in schema-map.md.
+
+product: cfc-fertilizer
+db_engine: postgres
+
+ground_rules:
+  - "No foreign keys in the database — tables join only by matching ID columns."
+  - "Yes/No flags are smallint; VB6-imported data may store -1 for 'yes', not 1. Test with <> 0."
+  - "Identify nutrients by nutrient.nutrientnumber, not nutrientid (1=N, 6=P2O5, 7=K2O)."
+  - "Use codes/names (ingredientcode, productcode, customercode) when talking to users, never internal IDs."
+  - "Dead/legacy — never use: ingredient.marketcost, ingredient.moisture, ingredient.round, ingredient.mixscale, ingredient.alternativecode, product.batchsize, product.poundpergallon, productnutrient.restcost, the config table, the lpfertilizerconstraint table, and the pricing tables (pricecontrol, pricelevel, productprice, priceflag)."
+  - "productingredient.solution and productbindingagent.solution are lbs/acre (US/Canadian) or kg/hectare (metric) — an application rate, not lbs/ton of mix."
+  - "formulationstatus = 1 does not reliably mean 'not formulated' for migrated data — the VB6 importer resets every migrated formula to 1 regardless of whether it already had a solution."
+
+# tools: []   # to be filled in: search_ingredients, get_ingredient, search_formulas,
+#             # get_formula, find_formulas_using, list_infeasible_formulas, get_customer
