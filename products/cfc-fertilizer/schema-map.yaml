@@ -31,8 +31,9 @@ tools:
     parameters:
       - name: query
         type: string
-        required: true
-        description: Fragment of the ingredient name or code to search for.
+        required: false
+        default: ""
+        description: Fragment of the ingredient name or code to search for. Leave empty to list all ingredients (e.g. to sort/filter by cost or stock yourself across the full set).
       - name: active_only
         type: boolean
         required: false
@@ -41,7 +42,7 @@ tools:
       - name: limit
         type: integer
         required: false
-        default: 25
+        default: 50
         description: Maximum number of rows to return.
     sql: |
       SELECT ingredientcode, ingredientname,
@@ -75,3 +76,271 @@ tools:
              COALESCE(isbindingagent, 0) <> 0 AS is_binding_agent
       FROM ingredient
       WHERE ingredientcode = @code
+
+  - name: get_ingredient_nutrients
+    description: >
+      Get the nutrient profile (percent by nutrient) of one ingredient by its
+      exact code. Only nutrients with a non-zero value are returned - a
+      nutrient missing from the result is 0%/blank for that ingredient, not
+      necessarily absent from its composition (check nutrientnumber carefully;
+      e.g. nitrogen can be recorded under a specific nitrogen-form nutrient
+      rather than "Total Nitrogen" #1).
+    read_only: true
+    parameters:
+      - name: code
+        type: string
+        required: true
+        description: Exact ingredient code, as shown in the app.
+    sql: |
+      SELECT n.nutrientnumber, n.nutrientname, v.value AS percent
+      FROM ingredient i
+      JOIN ingredientnutrientvalue v ON v.ingredientid = i.ingredientid
+      JOIN nutrient n ON n.nutrientid = v.nutrientid
+      WHERE i.ingredientcode = @code
+        AND COALESCE(v.value, 0) <> 0
+      ORDER BY n.nutrientnumber
+
+  - name: list_binding_agents
+    description: >
+      List every ingredient currently flagged as a binding agent. Binders aren't
+      offered directly in a formula's ingredient list - the app adds them
+      automatically. An empty result means no formula can pick up a binder right now.
+    read_only: true
+    parameters: []
+    sql: |
+      SELECT ingredientcode, ingredientname, owncost,
+             COALESCE(isactive, 0) <> 0 AS is_active,
+             COALESCE(isinstock, 0) <> 0 AS is_in_stock
+      FROM ingredient
+      WHERE COALESCE(isbindingagent, 0) <> 0
+      ORDER BY ingredientname
+
+  - name: get_customer
+    description: >
+      Search customers by a fragment of their code or name. Returns code, name,
+      address, phone, and active flag. Watch for near-duplicate customer records
+      with slightly different spelling/spacing (e.g. "KT Farms" vs "K T Farms") -
+      a single fragment search can silently miss one of them, so try obvious
+      spelling variants before concluding a customer has no other records.
+    read_only: true
+    parameters:
+      - name: query
+        type: string
+        required: true
+        description: Fragment of the customer name or code to search for.
+      - name: limit
+        type: integer
+        required: false
+        default: 25
+        description: Maximum number of rows to return.
+    sql: |
+      SELECT customercode, customername, address1, address2, city, zipcode, customerphone,
+             COALESCE(isactive, 0) <> 0 AS is_active
+      FROM customer
+      WHERE customername ILIKE '%' || @query || '%' OR customercode ILIKE '%' || @query || '%'
+      ORDER BY customername
+      LIMIT @limit
+
+  - name: search_formulas
+    description: >
+      Search formulas (called "products" in the database) by customer code,
+      customer name fragment, formula code/name fragment, and/or status. Returns
+      formula code/name, customer, type, status, acres, and last-saved timestamp.
+      Leave a filter empty/default to not filter on it. Status labels: "feasible",
+      "infeasible", or "not_formulated" - but formulationstatus is unreliable for
+      migrated data (see ground rules), so a "not_formulated" result may still
+      carry real solution data from before migration.
+    read_only: true
+    parameters:
+      - name: customer_code
+        type: string
+        required: false
+        default: ""
+        description: Exact customer code to filter to (e.g. "KTFARMS"). Leave empty for no filter.
+      - name: customer_query
+        type: string
+        required: false
+        default: ""
+        description: Fragment of the customer name to filter to. Leave empty for no filter. Like get_customer, this is a plain substring match and can miss differently-spelled duplicate customer records.
+      - name: query
+        type: string
+        required: false
+        default: ""
+        description: Fragment of the formula code or name to filter to. Leave empty for no filter.
+      - name: status
+        type: string
+        required: false
+        default: ""
+        description: One of "feasible", "infeasible", "not_formulated", or empty for any status.
+      - name: active_only
+        type: boolean
+        required: false
+        default: false
+        description: If true, only return active formulas.
+      - name: limit
+        type: integer
+        required: false
+        default: 100
+        description: Maximum number of rows to return.
+    sql: |
+      SELECT p.productcode, p.productname, c.customercode, c.customername,
+             CASE p.producttype WHEN 1 THEN 'dry soil test' WHEN 2 THEN 'dry to grade'
+                                WHEN 3 THEN 'liquid soil test' WHEN 4 THEN 'liquid to grade'
+                                ELSE 'unknown' END AS formula_type,
+             CASE p.formulationstatus WHEN 2 THEN 'feasible' WHEN 3 THEN 'infeasible'
+                                      ELSE 'not_formulated' END AS status,
+             p.numberacre, p.updatestamp,
+             COALESCE(p.isactive, 0) <> 0 AS is_active
+      FROM product p
+      LEFT JOIN customer c ON c.customerid = p.customerid
+      WHERE (@customer_code = '' OR c.customercode = @customer_code)
+        AND (@customer_query = '' OR c.customername ILIKE '%' || @customer_query || '%')
+        AND (@query = '' OR p.productname ILIKE '%' || @query || '%' OR p.productcode ILIKE '%' || @query || '%')
+        AND (@status = ''
+             OR (@status = 'feasible' AND p.formulationstatus = 2)
+             OR (@status = 'infeasible' AND p.formulationstatus = 3)
+             OR (@status = 'not_formulated' AND COALESCE(p.formulationstatus, 0) IN (0, 1)))
+        AND (@active_only = false OR COALESCE(p.isactive, 0) <> 0)
+      ORDER BY p.productcode
+      LIMIT @limit
+
+  - name: get_formula_nutrients
+    description: >
+      Get the nutrient requirements (minimum/maximum) of one formula by its exact
+      code. For soil-test formulas, values are lbs/acre; for grade formulas,
+      percent of the finished mix.
+    read_only: true
+    parameters:
+      - name: formula_code
+        type: string
+        required: true
+        description: Exact formula (product) code, as shown in the app.
+    sql: |
+      SELECT n.nutrientnumber, n.nutrientname, pn.minimum, pn.maximum
+      FROM product p
+      JOIN productnutrient pn ON pn.productid = p.productid
+      JOIN nutrient n ON n.nutrientid = pn.nutrientid
+      WHERE p.productcode = @formula_code
+      ORDER BY n.nutrientnumber
+
+  - name: get_formula_ingredients
+    description: >
+      Get the ingredients offered to one formula by its exact code, with their
+      limits, stock flags, and last-solution amount (lbs/acre or kg/hectare -
+      an application rate, not lbs/ton of mix).
+    read_only: true
+    parameters:
+      - name: formula_code
+        type: string
+        required: true
+        description: Exact formula (product) code, as shown in the app.
+    sql: |
+      SELECT i.ingredientcode, i.ingredientname,
+             pi.minimum, pi.maximum, u.productingredientunitname AS limit_unit,
+             COALESCE(pi.isinstock, 0) <> 0 AS can_use,
+             COALESCE(i.isinstock, 0) <> 0 AS ingredient_in_stock,
+             pi.solution, i.owncost
+      FROM product p
+      JOIN productingredient pi ON pi.productid = p.productid
+      JOIN ingredient i ON i.ingredientid = pi.ingredientid
+      LEFT JOIN productingredientunit u ON u.productingredientunitid = pi.productingredientunitid
+      WHERE p.productcode = @formula_code
+      ORDER BY pi.solution DESC NULLS LAST
+
+  - name: get_formula_binders
+    description: >
+      Get the binders currently added to one formula's solution, by the
+      formula's exact code.
+    read_only: true
+    parameters:
+      - name: formula_code
+        type: string
+        required: true
+        description: Exact formula (product) code, as shown in the app.
+    sql: |
+      SELECT i.ingredientcode AS binder, i.ingredientname, b.solution
+      FROM product p
+      JOIN productbindingagent b ON b.productid = p.productid
+      JOIN ingredient i ON i.ingredientid = b.ingredientid
+      WHERE p.productcode = @formula_code
+
+  - name: find_formulas_using_ingredient
+    description: >
+      Find formulas that use a given ingredient in their last solution, by the
+      ingredient's exact code. Returns formula code/name, customer, and the
+      solution amount (lbs/acre or kg/hectare).
+    read_only: true
+    parameters:
+      - name: ingredient_code
+        type: string
+        required: true
+        description: Exact ingredient code, as shown in the app.
+      - name: active_only
+        type: boolean
+        required: false
+        default: true
+        description: If true, only return active formulas.
+      - name: limit
+        type: integer
+        required: false
+        default: 100
+        description: Maximum number of rows to return.
+    sql: |
+      SELECT p.productcode, p.productname, c.customercode, c.customername, pi.solution,
+             COALESCE(p.isactive, 0) <> 0 AS is_active
+      FROM productingredient pi
+      JOIN product p ON p.productid = pi.productid
+      JOIN ingredient i ON i.ingredientid = pi.ingredientid
+      LEFT JOIN customer c ON c.customerid = p.customerid
+      WHERE i.ingredientcode = @ingredient_code
+        AND COALESCE(pi.solution, 0) > 0
+        AND (@active_only = false OR COALESCE(p.isactive, 0) <> 0)
+      ORDER BY pi.solution DESC NULLS LAST
+      LIMIT @limit
+
+  - name: list_stale_formulas
+    description: >
+      List active formulas whose solution may be stale - where an ingredient's
+      data changed after the formula was last saved/formulated. Compares each
+      ingredient's updatestamp to its formula's updatestamp.
+    read_only: true
+    parameters: []
+    sql: |
+      SELECT DISTINCT p.productcode, p.productname, p.updatestamp AS formula_saved,
+             i.ingredientcode, i.updatestamp AS ingredient_changed
+      FROM product p
+      JOIN productingredient pi ON pi.productid = p.productid
+      JOIN ingredient i ON i.ingredientid = pi.ingredientid
+      WHERE COALESCE(p.isactive, 0) <> 0
+        AND i.updatestamp > p.updatestamp
+      ORDER BY p.productcode
+
+  - name: list_formulas_blocked_by_stock
+    description: >
+      List active formulas that require a minimum amount of an ingredient which
+      is currently out of stock - these can't reach a feasible solution for that
+      reason until the ingredient is restocked or the requirement is removed.
+    read_only: true
+    parameters: []
+    sql: |
+      SELECT DISTINCT p.productcode, p.productname, i.ingredientcode, i.ingredientname, pi.minimum
+      FROM productingredient pi
+      JOIN product p ON p.productid = pi.productid
+      JOIN ingredient i ON i.ingredientid = pi.ingredientid
+      WHERE COALESCE(pi.minimum, 0) > 0
+        AND COALESCE(i.isinstock, 0) = 0
+        AND COALESCE(p.isactive, 0) <> 0
+      ORDER BY p.productcode
+
+  - name: get_system_settings
+    description: >
+      Get the installation's current System Settings: measurement units, dry
+      ingredient cost unit, bulk-density reporting, default batch sizes, and
+      single/multi-user mode.
+    read_only: true
+    parameters: []
+    sql: |
+      SELECT ismetric, iscanadian, ingredientcostunit, isbulkdensityactive,
+             batchsize, liquidbatchsize, issingleuser
+      FROM systemoption
+      LIMIT 1
