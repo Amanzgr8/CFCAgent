@@ -1,11 +1,12 @@
 # CFC Fertilizer schema map — machine-readable form.
 #
-# STATUS: placeholder. schema-map.md (in this folder) is the authoritative,
-# human-written source right now. This file will be filled in once the
-# generic read-tool engine's config schema is designed (next step after
-# scaffolding) — each read tool will get a name, parameters, and a
-# parameterized SQL template here, driven by the ground rules and table
-# notes already captured in schema-map.md.
+# schema-map.md (in this folder) stays the authoritative, human-written reference
+# for the full schema. The `tools` section below is consumed directly by the MCP
+# server's generic read-tool engine (CFCChatBot.McpServer/Tools) at startup: each
+# entry becomes a real MCP tool, with no C# code needed, as long as the query is a
+# simple parameterized SELECT. Anything with cascading/calculated logic (the binder
+# cascade, solver re-run, system-wide unit switches) stays hand-written C# or
+# read/advisory-only per the MVP architecture doc's write-tool complexity split.
 
 product: cfc-fertilizer
 db_engine: postgres
@@ -19,5 +20,58 @@ ground_rules:
   - "productingredient.solution and productbindingagent.solution are lbs/acre (US/Canadian) or kg/hectare (metric) — an application rate, not lbs/ton of mix."
   - "formulationstatus = 1 does not reliably mean 'not formulated' for migrated data — the VB6 importer resets every migrated formula to 1 regardless of whether it already had a solution."
 
-# tools: []   # to be filled in: search_ingredients, get_ingredient, search_formulas,
-#             # get_formula, find_formulas_using, list_infeasible_formulas, get_customer
+tools:
+  - name: search_ingredients
+    description: >
+      Search ingredients by a fragment of their code or name. Returns code, name,
+      dry/liquid type, cost (owncost, normalized to $/lb or $/kg - never marketcost,
+      which is dead/legacy), and active/in-stock flags. Use this to find an
+      ingredient's exact code before calling get_ingredient.
+    read_only: true
+    parameters:
+      - name: query
+        type: string
+        required: true
+        description: Fragment of the ingredient name or code to search for.
+      - name: active_only
+        type: boolean
+        required: false
+        default: false
+        description: If true, only return active ingredients.
+      - name: limit
+        type: integer
+        required: false
+        default: 25
+        description: Maximum number of rows to return.
+    sql: |
+      SELECT ingredientcode, ingredientname,
+             CASE WHEN COALESCE(isliquid, 0) <> 0 THEN 'liquid' ELSE 'dry' END AS type,
+             owncost,
+             COALESCE(isactive, 0) <> 0 AS is_active,
+             COALESCE(isinstock, 0) <> 0 AS is_in_stock
+      FROM ingredient
+      WHERE (ingredientname ILIKE '%' || @query || '%' OR ingredientcode ILIKE '%' || @query || '%')
+        AND (@active_only = false OR COALESCE(isactive, 0) <> 0)
+      ORDER BY ingredientname
+      LIMIT @limit
+
+  - name: get_ingredient
+    description: >
+      Get full detail for one ingredient by its exact code: type, cost, bulk
+      density (dry) or pounds-per-gallon (liquid), active/in-stock/binding-agent
+      flags. Use search_ingredients first if the exact code isn't known.
+    read_only: true
+    parameters:
+      - name: code
+        type: string
+        required: true
+        description: Exact ingredient code, as shown in the app.
+    sql: |
+      SELECT ingredientcode, ingredientname,
+             CASE WHEN COALESCE(isliquid, 0) <> 0 THEN 'liquid' ELSE 'dry' END AS type,
+             owncost, bulkdensity, poundpergallon,
+             COALESCE(isactive, 0) <> 0 AS is_active,
+             COALESCE(isinstock, 0) <> 0 AS is_in_stock,
+             COALESCE(isbindingagent, 0) <> 0 AS is_binding_agent
+      FROM ingredient
+      WHERE ingredientcode = @code

@@ -25,13 +25,35 @@ A second product (e.g. a SQL-Server-backed formulation product) gets its own
 ## Status
 
 Phase 1 in progress: MCP server project scaffolded (`CFCChatBot.McpServer`,
-.NET 8, official `ModelContextProtocol` SDK, stdio transport), builds clean,
-smoke-test `ping` tool in place. Next: design the generic read-tool engine
-that consumes `schema-map.yaml`, then implement the read tools validated in
-the POC.
+.NET 10, official `ModelContextProtocol` SDK, stdio transport), package
+versions locked (`packages.lock.json`). The generic read-tool engine is
+built: it loads a product's `schema-map.yaml`, turns each `tools` entry into
+a real MCP tool (parameterized SQL, no C# code needed), and registers them
+with the server. `search_ingredients` and `get_ingredient` are wired up this
+way for `cfc-fertilizer`. Verified end-to-end over stdio (`initialize` +
+`tools/list`) without errors; not yet exercised against a live database.
+
+Next: run it against the real CFC Fertilizer database, then add the
+remaining read tools (`search_formulas`, `get_formula`, `find_formulas_using`,
+`list_infeasible_formulas`, `get_customer`) the same way.
 
 ## Build
 
 ```
 dotnet build
+```
+
+## Run
+
+The server needs two things from its environment, neither of them hardcoded:
+
+- `CFCCHATBOT_DB_CONNECTION_STRING` — an Npgsql connection string for the
+  target database. Without it, the server still starts but registers no
+  schema-map tools.
+- `CFCCHATBOT_PRODUCT_CONFIG` — path to a product's `schema-map.yaml`.
+  Defaults to `products/cfc-fertilizer/schema-map.yaml` when run via
+  `dotnet run` from `src/CFCChatBot.McpServer`.
+
+```
+dotnet run --project src/CFCChatBot.McpServer
 ```
