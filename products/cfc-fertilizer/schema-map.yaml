@@ -4,21 +4,29 @@
 # for the full schema. The `tools` section below is consumed directly by the MCP
 # server's generic read-tool engine (CFCChatBot.McpServer/Tools) at startup: each
 # entry becomes a real MCP tool, with no C# code needed, as long as the query is a
-# simple parameterized SELECT. Anything with cascading/calculated logic (the binder
-# cascade, solver re-run, system-wide unit switches) stays hand-written C# or
+# simple parameterized SELECT. The `write_tools` section is the Phase 2.1 "simple
+# write" counterpart: one table, one business key, a bounded set of writable
+# columns, no cascading logic. Every write tool always previews (reads current
+# values, reports what would change) before applying anything - only a call with
+# confirm=true actually runs the UPDATE, inside a transaction, with an audit line
+# logged to stderr. Anything with cascading/calculated logic (the binder cascade,
+# solver re-run, system-wide unit switches) stays hand-written C# or
 # read/advisory-only per the MVP architecture doc's write-tool complexity split.
 
 product: cfc-fertilizer
 db_engine: postgres
 
+# Rewritten for a tool-calling assistant, not a SQL-writing one: the original (longer)
+# list in CFC_Schema_Map.md covered things like join syntax and the smallint/-1 quirk,
+# which are now baked into each tool's own SQL and never reach the model. What's left
+# here is only what still matters when *interpreting a tool's output* or explaining it
+# to a user - this list is served live as part of this server's instructions (see
+# Program.cs), so keep entries short and about results, not implementation.
 ground_rules:
-  - "No foreign keys in the database — tables join only by matching ID columns."
-  - "Yes/No flags are smallint; VB6-imported data may store -1 for 'yes', not 1. Test with <> 0."
-  - "Identify nutrients by nutrient.nutrientnumber, not nutrientid (1=N, 6=P2O5, 7=K2O)."
-  - "Use codes/names (ingredientcode, productcode, customercode) when talking to users, never internal IDs."
-  - "Dead/legacy — never use: ingredient.marketcost, ingredient.moisture, ingredient.round, ingredient.mixscale, ingredient.alternativecode, product.batchsize, product.poundpergallon, productnutrient.restcost, the config table, the lpfertilizerconstraint table, and the pricing tables (pricecontrol, pricelevel, productprice, priceflag)."
-  - "productingredient.solution and productbindingagent.solution are lbs/acre (US/Canadian) or kg/hectare (metric) — an application rate, not lbs/ton of mix."
-  - "formulationstatus = 1 does not reliably mean 'not formulated' for migrated data — the VB6 importer resets every migrated formula to 1 regardless of whether it already had a solution."
+  - "Nutrients are identified by number in tool results (nutrientnumber), not an internal ID: 1 = Total Nitrogen, 6 = Phosphate (P2O5), 7 = Potassium (K2O). Use these numbers/names, not nutrientid, when explaining a nutrient profile or requirement."
+  - "A few ingredient/product fields and whole tables are legacy VB6 holdovers with no live effect in the app (marketcost, moisture, round, mixscale, alternativecode on ingredient; batchsize, poundpergallon on product; restcost on productnutrient; the pricing tables). No tool here returns them. If a user asks about one, say it isn't tracked by the current app rather than guessing at a value."
+  - "solution values returned by get_formula_ingredients, get_formula_binders, and find_formulas_using_ingredient are an application rate - lbs/acre (US/Canadian) or kg/hectare (metric) - not lbs/ton of the finished mix."
+  - "A formula status of 'not_formulated' doesn't reliably mean it has no solution - formulas migrated from the old VB6 program were all reset to this status regardless of whether they already had a computed solution. Don't assume 'not formulated' means 'no data'; say the status is unverified since migration if it matters to the answer."
 
 tools:
   - name: search_ingredients
@@ -344,3 +352,52 @@ tools:
              batchsize, liquidbatchsize, issingleuser
       FROM systemoption
       LIMIT 1
+
+write_tools:
+  - name: update_ingredient
+    description: >
+      Update one or more fields on an existing ingredient, identified by its exact
+      code: cost, active flag, and/or in-stock flag. ALWAYS previews first - call
+      without confirm (or confirm=false) to see exactly what would change, show
+      that preview to the user, and only call again with confirm=true once they've
+      agreed. Never set confirm=true on the first call.
+    table: ingredient
+    key_parameter: code
+    key_column: ingredientcode
+    key_description: Exact ingredient code, as shown in the app.
+    display_column: ingredientname
+    fields:
+      - column: owncost
+        parameter: owncost
+        type: number
+        description: New cost, normalized to $/lb (or $/kg under Canadian/metric units) - same basis as owncost in search_ingredients/get_ingredient.
+      - column: isactive
+        parameter: is_active
+        type: boolean
+        description: Active flag. Ingredients are never deleted, only deactivated.
+      - column: isinstock
+        parameter: is_in_stock
+        type: boolean
+        description: In-stock flag. Out-of-stock ingredients are excluded from solutions.
+
+  - name: update_customer
+    description: >
+      Update one or more fields on an existing customer, identified by its exact
+      code: name and/or active flag. ALWAYS previews first - call without confirm
+      (or confirm=false) to see exactly what would change, show that preview to
+      the user, and only call again with confirm=true once they've agreed. Never
+      set confirm=true on the first call.
+    table: customer
+    key_parameter: code
+    key_column: customercode
+    key_description: Exact customer code, as shown in the app.
+    display_column: customername
+    fields:
+      - column: customername
+        parameter: customer_name
+        type: string
+        description: Corrected customer name.
+      - column: isactive
+        parameter: is_active
+        type: boolean
+        description: Active flag. Customers are never deleted, only deactivated.
