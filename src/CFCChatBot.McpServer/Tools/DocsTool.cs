@@ -14,9 +14,10 @@ public static class DocsTool
     [McpServerTool(Name = "search_docs")]
     [Description("Search the product documentation (user guide) for sections matching a keyword or phrase. Returns matching doc name, section title, and a short snippet - call read_section with the exact doc/title to get the full text.")]
     public static string SearchDocs(
-        DocsIndex index,
+        IServiceProvider services,
         [Description("Keyword or phrase to search for, e.g. 'binding agent' or 'liquid formula'.")] string query)
     {
+        DocsIndex index = GetDocsIndex(services);
         List<object> matches = [.. index.Sections
             .Where(s => s.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
                      || s.Content.Contains(query, StringComparison.OrdinalIgnoreCase))
@@ -33,10 +34,11 @@ public static class DocsTool
     [McpServerTool(Name = "read_section")]
     [Description("Get the full text of one documentation section, by doc name and exact section title (as returned by search_docs).")]
     public static string ReadSection(
-        DocsIndex index,
+        IServiceProvider services,
         [Description("Doc name, e.g. 'guide' (as returned by search_docs).")] string doc,
         [Description("Exact section title, as returned by search_docs.")] string section)
     {
+        DocsIndex index = GetDocsIndex(services);
         DocSection? match = index.Sections.FirstOrDefault(s =>
             string.Equals(s.Doc, doc, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(s.Title, section, StringComparison.OrdinalIgnoreCase));
@@ -48,6 +50,13 @@ public static class DocsTool
 
         return match.Content;
     }
+
+    // IServiceProvider is always excluded from the generated tool schema by the MCP SDK
+    // (unconditionally, unlike resolving a concrete service type directly as the method's
+    // own parameter - that exclusion didn't reliably happen for NpgsqlDataSource in
+    // BinderConfigTool, so resolve DocsIndex by hand here too rather than depend on it).
+    private static DocsIndex GetDocsIndex(IServiceProvider services) =>
+        (DocsIndex)services.GetService(typeof(DocsIndex))!;
 
     private static string Snippet(string content, string query)
     {

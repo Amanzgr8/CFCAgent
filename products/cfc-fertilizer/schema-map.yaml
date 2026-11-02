@@ -357,15 +357,20 @@ write_tools:
   - name: update_ingredient
     description: >
       Update one or more fields on an existing ingredient, identified by its exact
-      code: cost, active flag, and/or in-stock flag. ALWAYS previews first - call
-      without confirm (or confirm=false) to see exactly what would change, show
-      that preview to the user, and only call again with confirm=true once they've
-      agreed. Never set confirm=true on the first call.
+      code: cost, active flag, in-stock flag, and/or binding-agent flag. ALWAYS
+      previews first - call without confirm (or confirm=false) to see exactly what
+      would change, show that preview to the user, and only call again with
+      confirm=true once they've agreed. Never set confirm=true on the first call. To
+      set up a binder *relationship* on another ingredient (which binder it uses, in
+      what ratio), use configure_ingredient_binder instead - this tool only flags an
+      ingredient as eligible to BE a binder.
     table: ingredient
-    key_parameter: code
-    key_column: ingredientcode
-    key_description: Exact ingredient code, as shown in the app.
     display_column: ingredientname
+    keys:
+      - column: ingredientcode
+        parameter: code
+        type: string
+        description: Exact ingredient code, as shown in the app.
     fields:
       - column: owncost
         parameter: owncost
@@ -379,25 +384,197 @@ write_tools:
         parameter: is_in_stock
         type: boolean
         description: In-stock flag. Out-of-stock ingredients are excluded from solutions.
+      - column: isbindingagent
+        parameter: is_binding_agent
+        type: boolean
+        description: Binding-agent flag. Binders aren't offered directly in a formula's ingredient list - the app adds them automatically. Setting this true doesn't change any OTHER ingredient's binder relationship - use configure_ingredient_binder for that.
 
   - name: update_customer
     description: >
       Update one or more fields on an existing customer, identified by its exact
-      code: name and/or active flag. ALWAYS previews first - call without confirm
-      (or confirm=false) to see exactly what would change, show that preview to
-      the user, and only call again with confirm=true once they've agreed. Never
-      set confirm=true on the first call.
+      code: name, address, phone, and/or active flag. ALWAYS previews first - call
+      without confirm (or confirm=false) to see exactly what would change, show
+      that preview to the user, and only call again with confirm=true once they've
+      agreed. Never set confirm=true on the first call. State is not writable here -
+      ask the user to change it in the app.
     table: customer
-    key_parameter: code
-    key_column: customercode
-    key_description: Exact customer code, as shown in the app.
     display_column: customername
+    keys:
+      - column: customercode
+        parameter: code
+        type: string
+        description: Exact customer code, as shown in the app.
     fields:
       - column: customername
         parameter: customer_name
         type: string
         description: Corrected customer name.
+      - column: address1
+        parameter: address1
+        type: string
+        description: Street address line 1.
+      - column: address2
+        parameter: address2
+        type: string
+        description: Street address line 2.
+      - column: city
+        parameter: city
+        type: string
+        description: City.
+      - column: zipcode
+        parameter: zipcode
+        type: string
+        description: Zip/postal code.
+      - column: customerphone
+        parameter: phone
+        type: string
+        description: Phone number.
       - column: isactive
         parameter: is_active
         type: boolean
         description: Active flag. Customers are never deleted, only deactivated.
+
+  - name: update_nutrient
+    description: >
+      Update one or more fields on an existing nutrient, identified by its exact
+      number: name and/or active flag. ALWAYS previews first - call without confirm
+      (or confirm=false) to see exactly what would change, show that preview to the
+      user, and only call again with confirm=true once they've agreed. Never set
+      confirm=true on the first call. Total Nitrogen (1), Phosphate (6), and
+      Potassium (7) are required and must stay active - the database does not
+      enforce this, so refuse (don't apply) an is_active=false change for those
+      three numbers and tell the user why.
+    table: nutrient
+    display_column: nutrientname
+    keys:
+      - column: nutrientnumber
+        parameter: nutrient_number
+        type: integer
+        description: Nutrient number, as shown in the app (1=Total Nitrogen, 6=Phosphate/P2O5, 7=Potassium/K2O).
+    fields:
+      - column: nutrientname
+        parameter: nutrient_name
+        type: string
+        description: Corrected nutrient name.
+      - column: isactive
+        parameter: is_active
+        type: boolean
+        description: Active flag. Inactive nutrients aren't offered on formulation screens.
+
+  - name: update_formula
+    description: >
+      Update one or more non-solution fields on an existing formula, identified by
+      its exact code: field description, number of acres, lab reference number,
+      application rate, report comments, and/or active flag. These are all
+      user-entered inputs to formulation, not solver output, so they're safe to
+      change here - unlike the formula's ingredient mix/solution, which only the
+      solver (Formulate in the app) can produce. ALWAYS previews first - call
+      without confirm (or confirm=false) to see exactly what would change, show
+      that preview to the user, and only call again with confirm=true once they've
+      agreed. Never set confirm=true on the first call.
+    table: product
+    display_column: productname
+    keys:
+      - column: productcode
+        parameter: formula_code
+        type: string
+        description: Exact formula (product) code, as shown in the app.
+    fields:
+      - column: fielddescription
+        parameter: field_description
+        type: string
+        description: Field ID/description.
+      - column: numberacre
+        parameter: number_acre
+        type: number
+        description: Number of acres (hectares) to treat.
+      - column: labrefrencenumber
+        parameter: lab_reference_number
+        type: string
+        description: Lab reference number.
+      - column: appraterequired
+        parameter: application_rate
+        type: number
+        description: Application rate (lbs/acre or kg/hectare). 0 or omitted lets the optimizer choose the minimum.
+      - column: reportcomments
+        parameter: report_comments
+        type: string
+        description: Description/comments printed on the report.
+      - column: isactive
+        parameter: is_active
+        type: boolean
+        description: Active flag. Formulas are never deleted, only deactivated.
+
+  - name: update_formula_nutrient_limits
+    description: >
+      Update the minimum and/or maximum requirement for one nutrient on one
+      formula - e.g. to lower a nutrient minimum that's making the formula
+      infeasible (see get_formula_nutrients and the infeasibility ground rules).
+      Soil-test formulas: lbs/acre. Grade formulas: percent of the mix. ALWAYS
+      previews first - call without confirm (or confirm=false) to see exactly
+      what would change, show that preview to the user, and only call again with
+      confirm=true once they've agreed. Never set confirm=true on the first call.
+    table: productnutrient
+    keys:
+      - column: productid
+        parameter: formula_code
+        type: string
+        description: Exact formula (product) code, as shown in the app.
+        resolve:
+          table: product
+          business_column: productcode
+          id_column: productid
+      - column: nutrientid
+        parameter: nutrient_number
+        type: integer
+        description: Nutrient number, as shown in the app (1=Total Nitrogen, 6=Phosphate/P2O5, 7=Potassium/K2O).
+        resolve:
+          table: nutrient
+          business_column: nutrientnumber
+          id_column: nutrientid
+    fields:
+      - column: minimum
+        parameter: minimum
+        type: number
+        description: New minimum requirement.
+      - column: maximum
+        parameter: maximum
+        type: number
+        description: New maximum requirement.
+
+  - name: update_formula_ingredient_limits
+    description: >
+      Update the minimum and/or maximum restriction for one ingredient on one
+      formula - e.g. to loosen a restriction that's contributing to infeasibility,
+      or to exclude an ingredient. Unit depends on the formula's existing
+      productingredientunitid for that row (see get_formula_ingredients). ALWAYS
+      previews first - call without confirm (or confirm=false) to see exactly
+      what would change, show that preview to the user, and only call again with
+      confirm=true once they've agreed. Never set confirm=true on the first call.
+    table: productingredient
+    keys:
+      - column: productid
+        parameter: formula_code
+        type: string
+        description: Exact formula (product) code, as shown in the app.
+        resolve:
+          table: product
+          business_column: productcode
+          id_column: productid
+      - column: ingredientid
+        parameter: ingredient_code
+        type: string
+        description: Exact ingredient code, as shown in the app.
+        resolve:
+          table: ingredient
+          business_column: ingredientcode
+          id_column: ingredientid
+    fields:
+      - column: minimum
+        parameter: minimum
+        type: number
+        description: New minimum restriction.
+      - column: maximum
+        parameter: maximum
+        type: number
+        description: New maximum restriction.
