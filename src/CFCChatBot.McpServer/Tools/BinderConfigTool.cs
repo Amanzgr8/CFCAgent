@@ -14,19 +14,16 @@ namespace CFCChatBot.McpServer.Tools;
 // ingredientbaseamount, ingredientrequiredamount) - never productbindingagent.solution,
 // which is solver output recomputed by Formulate, not something this can safely write
 // (same constraint as everywhere else solution-related).
-[McpServerToolType]
-public static class BinderConfigTool
+//
+// Built in Program.cs with the data source handed in directly, the same way the
+// schema-map tools are - not discovered via WithToolsFromAssembly, and not resolved from
+// the per-request service provider. That way a server process started without a DB
+// connection string simply doesn't offer this tool, instead of offering it and crashing.
+public sealed class BinderConfigTool(NpgsqlDataSource dataSource)
 {
-    // Named set_ingredient_binder, not configure_ingredient_binder: the client that hosts
-    // this server appears to cache a tool's JSON schema by name and keep the first version
-    // it ever saw, even across process restarts - configure_ingredient_binder's schema
-    // briefly (incorrectly) required a "dataSource" parameter before that was fixed, and
-    // every client session since has kept calling it with the stale, broken schema. A
-    // fresh name gets a fresh cache entry.
     [McpServerTool(Name = "set_ingredient_binder")]
     [Description("Set or clear an ingredient's binder relationship (bindingagentid, base amount, required amount), identified by its exact code. To set a binder, supply binder_code, base_amount, and required_amount together. To clear the binder, omit binder_code (or pass an empty string). ALWAYS previews first - call without confirm (or confirm=false) to see exactly what would change, show that preview to the user, and only call again with confirm=true once they've agreed. Never set confirm=true on the first call.")]
-    public static async Task<string> ConfigureIngredientBinder(
-        IServiceProvider services,
+    public async Task<string> ConfigureIngredientBinder(
         [Description("Exact code of the ingredient to configure, as shown in the app.")] string code,
         [Description("Exact code of the binder ingredient. Must itself be an active ingredient flagged as a binding agent. Omit or pass empty to clear this ingredient's binder.")] string? binder_code = null,
         [Description("Base amount (lbs) this ingredient's binder ratio applies to. Required when setting a binder.")] double? base_amount = null,
@@ -34,10 +31,6 @@ public static class BinderConfigTool
         [Description("Set to true to apply the change. Omit or set to false to preview it first (recommended default) - nothing is written to the database until confirm=true.")] bool confirm = false,
         CancellationToken cancellationToken = default)
     {
-        // IServiceProvider is always excluded from the generated tool schema by the MCP
-        // SDK (unconditionally, unlike resolving a concrete service type directly - that
-        // exclusion didn't reliably happen for NpgsqlDataSource, so resolve it by hand).
-        NpgsqlDataSource dataSource = (NpgsqlDataSource)services.GetService(typeof(NpgsqlDataSource))!;
         bool clearing = string.IsNullOrWhiteSpace(binder_code);
         if (!clearing && (base_amount is null || required_amount is null))
         {
@@ -101,7 +94,7 @@ public static class BinderConfigTool
             if (!isBinder)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                throw new McpException($"'{binder_code}' is not flagged as a binding agent. Only ingredients flagged isbindingagent can be used as a binder here - set that flag first (update_ingredient doesn't expose it; this needs changing in the app), or pick a different ingredient.");
+                throw new McpException($"'{binder_code}' is not flagged as a binding agent. Only ingredients flagged as binding agents can be used as a binder here - flag it first with update_ingredient (is_binding_agent=true), or pick a different ingredient.");
             }
 
             if (!isActive)
@@ -122,10 +115,10 @@ public static class BinderConfigTool
             summary.AppendLine($"  base_amount: {FormatNumber(currentBase)} -> {base_amount}");
             summary.AppendLine($"  required_amount: {FormatNumber(currentRequired)} -> {required_amount}");
         }
-        else if (currentBase is not null || currentRequired is not null)
+        else
         {
-            summary.AppendLine($"  base_amount: {FormatNumber(currentBase)} -> (none)");
-            summary.AppendLine($"  required_amount: {FormatNumber(currentRequired)} -> (none)");
+            summary.AppendLine($"  base_amount: {FormatNumber(currentBase)} -> 0");
+            summary.AppendLine($"  required_amount: {FormatNumber(currentRequired)} -> 0");
         }
 
         if (!confirm)
@@ -139,9 +132,11 @@ public static class BinderConfigTool
         {
             updateCommand.Transaction = transaction;
             updateCommand.CommandText = "UPDATE ingredient SET bindingagentid = @binderId, ingredientbaseamount = @base, ingredientrequiredamount = @required WHERE ingredientcode = @code";
-            updateCommand.Parameters.AddWithValue("binderId", (object?)newBinderId ?? DBNull.Value);
-            updateCommand.Parameters.AddWithValue("base", clearing ? DBNull.Value : base_amount!.Value);
-            updateCommand.Parameters.AddWithValue("required", clearing ? DBNull.Value : required_amount!.Value);
+            // "No binder" is 0, not NULL: the CFC app maps these to non-nullable fields and tests
+            // BindingAgentID > 0, and every existing ingredient stores 0 when it has no binder.
+            updateCommand.Parameters.AddWithValue("binderId", newBinderId ?? 0);
+            updateCommand.Parameters.AddWithValue("base", clearing ? 0d : base_amount!.Value);
+            updateCommand.Parameters.AddWithValue("required", clearing ? 0d : required_amount!.Value);
             updateCommand.Parameters.AddWithValue("code", code);
             await updateCommand.ExecuteNonQueryAsync(cancellationToken);
         }
