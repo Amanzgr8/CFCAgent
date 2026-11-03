@@ -362,7 +362,7 @@ write_tools:
       would change, show that preview to the user, and only call again with
       confirm=true once they've agreed. Never set confirm=true on the first call. To
       set up a binder *relationship* on another ingredient (which binder it uses, in
-      what ratio), use configure_ingredient_binder instead - this tool only flags an
+      what ratio), use set_ingredient_binder instead - this tool only flags an
       ingredient as eligible to BE a binder.
     table: ingredient
     display_column: ingredientname
@@ -387,7 +387,7 @@ write_tools:
       - column: isbindingagent
         parameter: is_binding_agent
         type: boolean
-        description: Binding-agent flag. Binders aren't offered directly in a formula's ingredient list - the app adds them automatically. Setting this true doesn't change any OTHER ingredient's binder relationship - use configure_ingredient_binder for that.
+        description: Binding-agent flag. Binders aren't offered directly in a formula's ingredient list - the app adds them automatically. Setting this true doesn't change any OTHER ingredient's binder relationship - use set_ingredient_binder for that.
 
   - name: update_customer
     description: >

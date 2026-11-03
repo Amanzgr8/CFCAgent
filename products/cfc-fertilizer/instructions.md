@@ -32,7 +32,7 @@ guide, and several **write** tools: `update_ingredient` (cost, active, in-stock)
 comments, active — not the ingredient mix/solution itself, which only the solver
 produces), `update_formula_nutrient_limits` and `update_formula_ingredient_limits`
 (the min/max restrictions behind an infeasible result — see C1/C8-style diagnosis
-below), and `configure_ingredient_binder` (set or clear a binder relationship).
+below), and `set_ingredient_binder` (set or clear a binder relationship).
 Everything else is still advisory-only. For this MVP:
 
 - Answer questions using the read tools freely. If a question needs data no tool

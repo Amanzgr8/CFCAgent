@@ -17,7 +17,13 @@ namespace CFCChatBot.McpServer.Tools;
 [McpServerToolType]
 public static class BinderConfigTool
 {
-    [McpServerTool(Name = "configure_ingredient_binder")]
+    // Named set_ingredient_binder, not configure_ingredient_binder: the client that hosts
+    // this server appears to cache a tool's JSON schema by name and keep the first version
+    // it ever saw, even across process restarts - configure_ingredient_binder's schema
+    // briefly (incorrectly) required a "dataSource" parameter before that was fixed, and
+    // every client session since has kept calling it with the stale, broken schema. A
+    // fresh name gets a fresh cache entry.
+    [McpServerTool(Name = "set_ingredient_binder")]
     [Description("Set or clear an ingredient's binder relationship (bindingagentid, base amount, required amount), identified by its exact code. To set a binder, supply binder_code, base_amount, and required_amount together. To clear the binder, omit binder_code (or pass an empty string). ALWAYS previews first - call without confirm (or confirm=false) to see exactly what would change, show that preview to the user, and only call again with confirm=true once they've agreed. Never set confirm=true on the first call.")]
     public static async Task<string> ConfigureIngredientBinder(
         IServiceProvider services,
@@ -126,7 +132,7 @@ public static class BinderConfigTool
         {
             await transaction.RollbackAsync(cancellationToken);
             return $"Preview (nothing applied yet) - ingredient {subject}:\n{summary}" +
-                   "Call configure_ingredient_binder again with the same arguments plus confirm=true to apply this exact change.";
+                   "Call set_ingredient_binder again with the same arguments plus confirm=true to apply this exact change.";
         }
 
         await using (NpgsqlCommand updateCommand = connection.CreateCommand())
@@ -143,7 +149,7 @@ public static class BinderConfigTool
         await transaction.CommitAsync(cancellationToken);
 
         Console.Error.WriteLine(
-            $"[Audit] {DateTimeOffset.UtcNow:O} configure_ingredient_binder ingredient.ingredientcode={code}: binder {oldBinderLabel} -> {newBinderLabel}");
+            $"[Audit] {DateTimeOffset.UtcNow:O} set_ingredient_binder ingredient.ingredientcode={code}: binder {oldBinderLabel} -> {newBinderLabel}");
 
         return $"Applied - ingredient {subject}:\n{summary}Change committed.";
     }
