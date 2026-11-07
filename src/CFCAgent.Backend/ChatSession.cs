@@ -2,6 +2,10 @@ using Microsoft.Extensions.AI;
 
 namespace CFCAgent.Backend;
 
+// Keeps the conversation history and runs one turn at a time against any model client.
+// The client is wrapped in FunctionInvokingChatClient, which runs the tool loop: the model
+// asks for a tool, the tool runs, and the result goes back to the model. The server's
+// instructions are used as the system prompt.
 public sealed class ChatSession
 {
     private readonly IChatClient _client;

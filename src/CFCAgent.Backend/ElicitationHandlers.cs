@@ -3,6 +3,9 @@ using ModelContextProtocol.Protocol;
 
 namespace CFCAgent.Backend;
 
+// Builds the handler that answers the server's confirmation requests (elicitation). It routes
+// the request to a confirmation callback and answers accept (with true) only when the user
+// said yes; otherwise it declines, or cancels if the callback was cancelled.
 public static class ElicitationHandlers
 {
     public static Func<ElicitRequestParams?, CancellationToken, ValueTask<ElicitResult>> Create(

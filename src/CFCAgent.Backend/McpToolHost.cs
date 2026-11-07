@@ -4,6 +4,11 @@ using ModelContextProtocol.Protocol;
 
 namespace CFCAgent.Backend;
 
+// The main piece of the backend. Launches the MCP server as a child process over stdio and
+// connects to it as an MCP client, turns the server's tools into AI tools a model can call,
+// and exposes the server's instructions text. It only tells the server it can ask the user
+// for confirmation (elicitation) when a confirmation callback is supplied. Everything else
+// builds on this.
 public sealed class McpToolHost : IAsyncDisposable
 {
     private readonly McpClient _client;

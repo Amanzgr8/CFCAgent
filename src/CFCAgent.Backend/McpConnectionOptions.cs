@@ -1,5 +1,9 @@
 namespace CFCAgent.Backend;
 
+// Settings needed to start the MCP server as a child process: the command and arguments
+// that launch it, an optional working directory, the product config path, and two optional
+// callbacks: one that asks the user to confirm a change, one that receives the server's log
+// lines. The backend is handed these values; it never references the server project.
 public sealed class McpConnectionOptions
 {
     public required string Command { get; init; }

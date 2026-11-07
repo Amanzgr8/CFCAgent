@@ -2,6 +2,11 @@ using Anthropic;
 using CFCAgent.Backend;
 using Microsoft.Extensions.AI;
 
+// Console host for the backend: wires McpToolHost, ChatSession and a model together so the
+// whole stack can be tested without a UI. Modes: interactive chat, --list-tools, and
+// --call <tool> --args <json>, which runs read tools only (update_ and set_ tools are refused).
+// Uses the Anthropic model when ANTHROPIC_API_KEY is set, otherwise the stub. Changes are
+// confirmed by typing yes at the console prompt.
 const string DefaultModel = "claude-sonnet-5-5";
 
 string? FindRepoRoot()

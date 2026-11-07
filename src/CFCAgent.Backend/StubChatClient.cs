@@ -2,6 +2,8 @@ using Microsoft.Extensions.AI;
 
 namespace CFCAgent.Backend;
 
+// Fake model used when there is no ANTHROPIC_API_KEY. It echoes the last user message back,
+// so the tool host, chat session and CLI can be exercised without calling Claude.
 public sealed class StubChatClient : IChatClient
 {
     public Task<ChatResponse> GetResponseAsync(
