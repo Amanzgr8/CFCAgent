@@ -1,4 +1,4 @@
-# CFC Chatbot
+# CFC Agent
 
 AI assistant for CFC Fertilizer (and future formulation products), built per
 `CFC_AI_Assistant_MVP_Architecture_and_Plan.pdf`. See that document for the
@@ -8,7 +8,7 @@ full architecture and phased plan; this file just orients the repo.
 
 ```
 src/
-  CFCChatBot.McpServer/     Phase 1-2: the custom MCP server (read + write tools)
+  CFCAgent.McpServer/     Phase 1-2: the custom MCP server (read + write tools)
 products/
   cfc-fertilizer/           Product config for CFC Fertilizer
     schema-map.yaml         Machine-readable schema map (placeholder, see file)
@@ -24,7 +24,7 @@ A second product (e.g. a SQL-Server-backed formulation product) gets its own
 
 ## Status
 
-Phase 1 in progress: MCP server project scaffolded (`CFCChatBot.McpServer`,
+Phase 1 in progress: MCP server project scaffolded (`CFCAgent.McpServer`,
 .NET 10, official `ModelContextProtocol` SDK, stdio transport), package
 versions locked (`packages.lock.json`). The generic read-tool engine is
 built: it loads a product's `schema-map.yaml`, turns each `tools` entry into
@@ -52,8 +52,8 @@ The server needs two things from its environment, neither of them hardcoded:
   schema-map tools.
 - `CFCCHATBOT_PRODUCT_CONFIG` — path to a product's `schema-map.yaml`.
   Defaults to `products/cfc-fertilizer/schema-map.yaml` when run via
-  `dotnet run` from `src/CFCChatBot.McpServer`.
+  `dotnet run` from `src/CFCAgent.McpServer`.
 
 ```
-dotnet run --project src/CFCChatBot.McpServer
+dotnet run --project src/CFCAgent.McpServer
 ```

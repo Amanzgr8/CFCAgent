@@ -2,7 +2,7 @@
 #
 # schema-map.md (in this folder) stays the authoritative, human-written reference
 # for the full schema. The `tools` section below is consumed directly by the MCP
-# server's generic read-tool engine (CFCChatBot.McpServer/Tools) at startup: each
+# server's generic read-tool engine (CFCAgent.McpServer/Tools) at startup: each
 # entry becomes a real MCP tool, with no C# code needed, as long as the query is a
 # simple parameterized SELECT. The `write_tools` section is the Phase 2.1 "simple
 # write" counterpart: one table, one business key, a bounded set of writable
