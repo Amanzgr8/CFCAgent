@@ -1,4 +1,33 @@
+# Build output
 bin/
 obj/
+
+# Visual Studio / editors
 .vs/
+.vscode/
+.idea/
 *.user
+*.suo
+
+# Test output and logs
+TestResults/
+*.log
+
+# Secrets and local config - connection strings and API keys live in environment
+# variables, never in the repo
+.env
+.env.*
+appsettings.*.local.json
+*.local.json
+*.pfx
+*.key
+secrets.json
+
+# Generated documents (the roadmap PDF is built into the Desktop folder, not the repo)
+*.pdf
+
+# Python and OS leftovers
+__pycache__/
+*.pyc
+Thumbs.db
+.DS_Store
