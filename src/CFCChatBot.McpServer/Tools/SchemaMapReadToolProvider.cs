@@ -4,7 +4,7 @@ using Npgsql;
 
 namespace CFCChatBot.McpServer.Tools;
 
-public static class SchemaMapToolProvider
+public static class SchemaMapReadToolProvider
 {
     public static IReadOnlyList<McpServerTool> BuildTools(ProductConfig config, NpgsqlDataSource dataSource)
     {
@@ -12,7 +12,7 @@ public static class SchemaMapToolProvider
 
         foreach (ToolDefinition definition in config.Tools)
         {
-            SchemaMapSqlFunction function = new(definition, dataSource);
+            SchemaMapReadFunction function = new(definition, dataSource);
             tools.Add(McpServerTool.Create(function, new McpServerToolCreateOptions
             {
                 ReadOnly = definition.ReadOnly,

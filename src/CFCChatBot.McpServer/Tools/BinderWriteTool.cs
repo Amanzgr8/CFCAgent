@@ -19,11 +19,11 @@ namespace CFCChatBot.McpServer.Tools;
 // schema-map tools are - not discovered via WithToolsFromAssembly, and not resolved from
 // the per-request service provider. That way a server process started without a DB
 // connection string simply doesn't offer this tool, instead of offering it and crashing.
-public sealed class BinderConfigTool(NpgsqlDataSource dataSource)
+public sealed class BinderWriteTool(NpgsqlDataSource dataSource)
 {
     [McpServerTool(Name = "set_ingredient_binder")]
     [Description("Set or clear an ingredient's binder relationship (bindingagentid, base amount, required amount), identified by its exact code. To set a binder, supply binder_code, base_amount, and required_amount together. To clear the binder, omit binder_code (or pass an empty string). ALWAYS previews first - call without confirm (or confirm=false) to see exactly what would change, show that preview to the user, and only call again with confirm=true once they've agreed. Never set confirm=true on the first call.")]
-    public async Task<string> ConfigureIngredientBinder(
+    public async Task<string> SetIngredientBinder(
         [Description("Exact code of the ingredient to configure, as shown in the app.")] string code,
         [Description("Exact code of the binder ingredient. Must itself be an active ingredient flagged as a binding agent. Omit or pass empty to clear this ingredient's binder.")] string? binder_code = null,
         [Description("Base amount (lbs) this ingredient's binder ratio applies to. Required when setting a binder.")] double? base_amount = null,

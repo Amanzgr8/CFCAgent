@@ -9,7 +9,7 @@ namespace CFCChatBot.McpServer.Tools;
 
 // Generic engine for "simple" writes per the MVP architecture doc's complexity split:
 // a bounded set of single-row field updates on one table, identified by one or more
-// business keys - no C# needed per writable table, same spirit as SchemaMapSqlFunction
+// business keys - no C# needed per writable table, same spirit as SchemaMapReadFunction
 // for reads. Always previews first: a call without confirm=true never touches the
 // database, it only reads the current values and reports what WOULD change. Only
 // confirm=true runs the UPDATE, inside a transaction, and logs an audit line to stderr.

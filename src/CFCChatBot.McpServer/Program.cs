@@ -81,11 +81,11 @@ else
     {
         NpgsqlDataSource dataSource = NpgsqlDataSource.Create(connectionString);
         builder.Services.AddSingleton(dataSource);
-        dynamicTools = SchemaMapToolProvider.BuildTools(productConfig, dataSource).ToArray();
+        dynamicTools = SchemaMapReadToolProvider.BuildTools(productConfig, dataSource).ToArray();
 
-        BinderConfigTool binderTool = new(dataSource);
+        BinderWriteTool binderTool = new(dataSource);
         McpServerTool binderMcpTool = McpServerTool.Create(
-            typeof(BinderConfigTool).GetMethod(nameof(BinderConfigTool.ConfigureIngredientBinder))!,
+            typeof(BinderWriteTool).GetMethod(nameof(BinderWriteTool.SetIngredientBinder))!,
             binderTool,
             new McpServerToolCreateOptions { ReadOnly = false, Destructive = false, Idempotent = true });
         writeTools = [.. SchemaMapWriteToolProvider.BuildTools(productConfig, dataSource), binderMcpTool];

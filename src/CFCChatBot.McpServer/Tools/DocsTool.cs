@@ -7,7 +7,7 @@ using ModelContextProtocol.Server;
 namespace CFCChatBot.McpServer.Tools;
 
 // Hand-written (not schema-map-driven) since this searches flat doc files,
-// not the database - a different kind of tool entirely from SchemaMapSqlFunction.
+// not the database - a different kind of tool entirely from SchemaMapReadFunction.
 [McpServerToolType]
 public static class DocsTool
 {
@@ -54,7 +54,7 @@ public static class DocsTool
     // IServiceProvider is always excluded from the generated tool schema by the MCP SDK
     // (unconditionally, unlike resolving a concrete service type directly as the method's
     // own parameter - that exclusion didn't reliably happen for NpgsqlDataSource in
-    // BinderConfigTool, so resolve DocsIndex by hand here too rather than depend on it).
+    // BinderWriteTool, so resolve DocsIndex by hand here too rather than depend on it).
     private static DocsIndex GetDocsIndex(IServiceProvider services) =>
         (DocsIndex)services.GetService(typeof(DocsIndex))!;
 

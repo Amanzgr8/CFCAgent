@@ -12,13 +12,13 @@ namespace CFCChatBot.McpServer.Tools;
 // schema-map.yaml is enough to expose it, no C# code needed, as long as the query is a
 // simple parameterized SELECT. Anything with cascading/calculated logic still needs a
 // hand-written tool instead (see the MVP architecture doc's write-tool complexity split).
-internal sealed class SchemaMapSqlFunction : AIFunction
+internal sealed class SchemaMapReadFunction : AIFunction
 {
     private readonly ToolDefinition _definition;
     private readonly NpgsqlDataSource _dataSource;
     private readonly JsonElement _jsonSchema;
 
-    public SchemaMapSqlFunction(ToolDefinition definition, NpgsqlDataSource dataSource)
+    public SchemaMapReadFunction(ToolDefinition definition, NpgsqlDataSource dataSource)
     {
         _definition = definition;
         _dataSource = dataSource;
