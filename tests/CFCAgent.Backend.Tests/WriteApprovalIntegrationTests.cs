@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using CFCAgent.Backend;
 using Microsoft.Extensions.AI;
@@ -8,8 +9,8 @@ namespace CFCAgent.Backend.Tests;
 // These tests need the server built (the test project builds it) and a database connection
 // string in CFCCHATBOT_DB_CONNECTION_STRING, otherwise they are skipped. Every test that could
 // write uses a no-op change (a value set to what it already is), so even a failure of the
-// enforcement under test would not alter data. The one test that makes a real change is
-// skipped unless CFCAGENT_ALLOW_WRITE_TESTS=1, and it restores the value afterwards.
+// enforcement under test would not alter data. The two tests that make real changes (one per
+// write path) are skipped unless CFCAGENT_ALLOW_WRITE_TESTS=1, and each restores what it changed.
 public class WriteApprovalIntegrationTests
 {
     private const string IngredientCode = "D066";
@@ -124,6 +125,110 @@ public class WriteApprovalIntegrationTests
         }
 
         Assert.Equal(double.Parse(original), double.Parse(await CurrentCostAsync(host)), 6);
+    }
+
+    [FactIfDatabase]
+    public async Task FindBinder_ReadsABindingAgentFromTheServer()
+    {
+        // Read-only. Guards the lookup the opt-in binder test depends on, so a change in the
+        // list_binding_agents reply shows up here without anyone having to enable writes.
+        await using McpToolHost host = await ConnectAsync(null);
+
+        (string code, bool _) = await FindBinderAsync(host);
+
+        Assert.False(string.IsNullOrWhiteSpace(code));
+    }
+
+    [FactIfWritesAllowed]
+    public async Task BinderTool_UserApproves_ChangeIsApplied_ThenRestored()
+    {
+        List<string> shownToUser = new List<string>();
+        await using McpToolHost host = await ConnectAsync((message, ct) =>
+        {
+            lock (shownToUser)
+            {
+                shownToUser.Add(message);
+            }
+
+            return Task.FromResult(true);
+        });
+
+        // Refuse to start unless the ingredient has no binder, so the restore below puts back exactly
+        // what was there. This preview writes nothing.
+        string before = await CallAsync(host, "set_ingredient_binder", new Dictionary<string, object?> { ["code"] = IngredientCode });
+        Assert.True(before.Contains("binder: (none) -> (none)"), $"{IngredientCode} already has a binder; refusing to change it. Preview was: {before}");
+
+        (string binderCode, bool binderWasActive) = await FindBinderAsync(host);
+        bool activatedBinder = false;
+        bool bindingAttempted = false;
+
+        try
+        {
+            if (!binderWasActive)
+            {
+                // The tool rejects an inactive binder, so switch it on for the test and back off after.
+                activatedBinder = true;
+                string activated = await CallAsync(host, "update_ingredient", new Dictionary<string, object?> { ["code"] = binderCode, ["is_active"] = true, ["confirm"] = true });
+                Assert.Contains("Change committed", activated);
+            }
+
+            bindingAttempted = true;
+            Dictionary<string, object?> setArguments = new Dictionary<string, object?>
+            {
+                ["code"] = IngredientCode,
+                ["binder_code"] = binderCode,
+                ["base_amount"] = 100.0,
+                ["required_amount"] = 5.0,
+                ["confirm"] = true,
+            };
+            string applied = await CallAsync(host, "set_ingredient_binder", setArguments);
+
+            Assert.Contains("Change committed", applied);
+            lock (shownToUser)
+            {
+                Assert.Contains(shownToUser, m => m.Contains("set_ingredient_binder") && m.Contains(IngredientCode) && m.Contains(binderCode));
+            }
+
+            // Read it back through the tool's own preview: the current binder now equals the new one.
+            setArguments["confirm"] = false;
+            string readBack = await CallAsync(host, "set_ingredient_binder", setArguments);
+            Assert.Contains($"binder: {binderCode} (", readBack);
+            Assert.DoesNotContain("binder: (none)", readBack);
+        }
+        finally
+        {
+            if (bindingAttempted)
+            {
+                await CallAsync(host, "set_ingredient_binder", new Dictionary<string, object?> { ["code"] = IngredientCode, ["confirm"] = true });
+            }
+
+            if (activatedBinder)
+            {
+                await CallAsync(host, "update_ingredient", new Dictionary<string, object?> { ["code"] = binderCode, ["is_active"] = false, ["confirm"] = true });
+            }
+        }
+
+        string after = await CallAsync(host, "set_ingredient_binder", new Dictionary<string, object?> { ["code"] = IngredientCode });
+        Assert.True(after.Contains("binder: (none) -> (none)"), $"{IngredientCode} was not restored to having no binder. Clear it with set_ingredient_binder. Preview was: {after}");
+
+        (string _, bool binderActiveAfter) = await FindBinderAsync(host);
+        Assert.Equal(binderWasActive, binderActiveAfter);
+    }
+
+    private static async Task<(string Code, bool IsActive)> FindBinderAsync(McpToolHost host)
+    {
+        string json = await CallAsync(host, "list_binding_agents", new Dictionary<string, object?>());
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(json);
+            JsonElement first = document.RootElement[0];
+            return (first.GetProperty("ingredientcode").GetString()!, first.GetProperty("is_active").GetBoolean());
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException or ArgumentOutOfRangeException)
+        {
+            Assert.Fail($"Could not find a binding agent to use. list_binding_agents returned: {json}");
+            throw;
+        }
     }
 
     private static string FindRepoRoot()
