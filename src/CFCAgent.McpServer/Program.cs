@@ -81,13 +81,20 @@ else
     {
         NpgsqlDataSource dataSource = NpgsqlDataSource.Create(connectionString);
         builder.Services.AddSingleton(dataSource);
-        dynamicTools = SchemaMapReadToolProvider.BuildTools(productConfig, dataSource).ToArray();
+        ConnectionCheckTool connectionCheckTool = new(dataSource);
+        McpServerTool connectionCheckMcpTool = McpServerTool.Create(
+            typeof(ConnectionCheckTool).GetMethod(nameof(ConnectionCheckTool.CheckDatabaseConnection))!,
+            connectionCheckTool,
+            new McpServerToolCreateOptions { ReadOnly = true });
+        dynamicTools = [.. SchemaMapReadToolProvider.BuildTools(productConfig, dataSource), connectionCheckMcpTool];
 
         BinderWriteTool binderTool = new(dataSource);
+
         McpServerTool binderMcpTool = McpServerTool.Create(
             typeof(BinderWriteTool).GetMethod(nameof(BinderWriteTool.SetIngredientBinder))!,
             binderTool,
             new McpServerToolCreateOptions { ReadOnly = false, Destructive = false, Idempotent = true });
+
         writeTools = [.. SchemaMapWriteToolProvider.BuildTools(productConfig, dataSource), binderMcpTool];
         Console.Error.WriteLine(
             $"[Startup] Loaded {dynamicTools.Length} read tool(s) and {writeTools.Length} write tool(s) for product '{productConfig.Product}' from {productConfigPath}.");
@@ -97,7 +104,8 @@ else
 // Every tool reaches the server through the three calls below, but tools are defined four ways:
 //   1. dynamicTools - read tools generated from schema-map.yaml (SchemaMapReadToolProvider)
 //   2. writeTools   - write tools generated from schema-map.yaml (SchemaMapWriteToolProvider)
-//   3. writeTools   - hand-written write tool built above and appended by hand (BinderWriteTool)
+//   3. hand-written tools built above with the data source handed in and appended by hand:
+//      BinderWriteTool (to writeTools) and ConnectionCheckTool (to dynamicTools)
 //   4. WithToolsFromAssembly - hand-written tools the SDK finds by scanning (DocsTool)
 // Every write tool (2 and 3) asks the connected client to confirm each change before writing
 // it; see WriteApproval.

@@ -231,22 +231,6 @@ public class WriteApprovalIntegrationTests
         }
     }
 
-    private static string FindRepoRoot()
-    {
-        DirectoryInfo? dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null)
-        {
-            if (File.Exists(Path.Combine(dir.FullName, "CFCAgent.sln")))
-            {
-                return dir.FullName;
-            }
-
-            dir = dir.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate the repository root (CFCAgent.sln).");
-    }
-
     private static async Task WaitForLogAsync(List<string> serverLog, Func<string, bool> predicate)
     {
         // The server's stderr is read on another thread, so the line can arrive just after the call returns.
@@ -271,18 +255,7 @@ public class WriteApprovalIntegrationTests
 
     private static Task<McpToolHost> ConnectAsync(Func<string, CancellationToken, Task<bool>>? confirm, Action<string>? onServerLog = null)
     {
-        string root = FindRepoRoot();
-        string configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
-        string serverDll = Path.Combine(root, "src", "CFCAgent.McpServer", "bin", configuration, "net10.0", "CFCAgent.McpServer.dll");
-
-        return McpToolHost.ConnectAsync(new McpConnectionOptions
-        {
-            Command = "dotnet",
-            Arguments = new[] { serverDll },
-            ProductConfigPath = Path.Combine(root, "products", "cfc-fertilizer", "schema-map.yaml"),
-            ConfirmAsync = confirm,
-            OnServerLog = onServerLog,
-        });
+        return TestServer.ConnectAsync(confirm, onServerLog);
     }
 
     private static async Task<string> CallAsync(McpToolHost host, string toolName, Dictionary<string, object?> arguments)
