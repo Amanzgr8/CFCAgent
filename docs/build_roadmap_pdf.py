@@ -12,7 +12,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import KeepTogether, ListFlowable, ListItem, Paragraph, SimpleDocTemplate, Spacer
 
 OUT = r"C:\Users\amanu\Desktop\Fertilizer Chatbot\CFC_AI_Assistant_Roadmap.pdf"
-UPDATED = "2026-11-02"
+UPDATED = "2026-11-08"
 
 DARK = Color(0.101961, 0.101961, 0.101961)
 STATUS_COLORS = {
@@ -72,15 +72,17 @@ PHASES = [
     ("Phase 2.2 \u2014 Complex write tools and the optimizer", "Partly done", [
         "<b>Done:</b> set_ingredient_binder, hand-written because it validates that the chosen binder is an active, binder-flagged ingredient. Touches only the ingredient's own binder-config columns, never solver output. Clearing a binder writes 0, matching how the CFC app stores it.",
         "<b>Decision:</b> the assistant does not call CFC's solver. It says what would be affected and tells the user to change the input and click Formulate; it never computes a recomputed cost itself. Whether the solver (LpEngine.DoLP, called from Product.cs) can be run outside the UI stays an optional upside, deferred.",
-        "<b>Moved to Phase 3:</b> the MCP elicitation confirmation framework \u2014 it needs our own client (see Future development).",
+        "<b>Built in Phase 3:</b> the MCP elicitation confirmation framework \u2014 it needed our own client. The server now enforces it on every write tool (see Phase 3).",
         "System-wide changes (e.g. switching measurement units) stay read/advisory-only, never a write tool.",
         "<b>Not yet run:</b> the test that an inactive ingredient is rejected as a binder.",
     ]),
-    ("Phase 3 \u2014 Chatbot backend", "Not started", [
-        "A new, separate project in the solution (not part of the MCP server). It holds the conversation, calls Claude through IChatClient, and acts as an MCP client that launches the MCP server over stdio. A small console host lets it be tested without any UI.",
-        "Loads product config and tenant config at session start, replacing today's two environment variables.",
-        "<b>MCP elicitation:</b> build the confirmation flow here, on our own client. The client answers the server's confirmation request; the server writes only on an explicit accept with an explicit true, and blocks the write on anything else. This replaces today's confirm=true convention.",
-        "Implements the end-to-end confirmation flow: a write-tool preview reaches the frontend and waits for explicit user confirmation before executing.",
+    ("Phase 3 \u2014 Chatbot backend", "Partly done", [
+        "<b>Done:</b> a new, separate project (CFCAgent.Backend) that holds the conversation, calls Claude through IChatClient, and acts as an MCP client launching the MCP server over stdio, plus a console host (CFCAgent.Backend.Cli) to test it without any UI. The project is renamed from CFCChatBot to CFC Agent.",
+        "<b>Done:</b> the CLI has --list-tools, --call (read tools only), --write (runs one write tool by hand, with the real console prompt) and --read-only (hides every tool the server does not declare read-only, so a model session cannot change data).",
+        "<b>Done:</b> server-side elicitation. A write call with confirm=true is only a request: the server asks the client to show the exact preview and writes only on an accepted form with an explicit true. A client that cannot prompt, a decline, a cancel, a timeout or any error means nothing is written. Applies to all 7 write tools (the 6 schema-map tools and set_ingredient_binder).",
+        "<b>Tests:</b> unit tests of the approval rule, and end-to-end tests that drive the real server with scripted answers (preview never asks; decline, cancel and no-prompt-support write nothing). One test that approves, applies and restores a real change is skipped unless explicitly enabled, and is still to be run by hand.",
+        "<b>Not yet done:</b> the live Claude conversation through the backend (needs an API key in the user's own environment); loading product and tenant config at session start, replacing today's two environment variables; the manual approve-and-restore check in the CLI.",
+        "<b>Consequence:</b> the Desktop app's Code tab declines the prompt, so write tools called from there are now blocked. Writes work through our own client and Claude Code in a terminal.",
     ]),
     ("Phase 4 \u2014 Desktop frontend", "Not started", [
         "Chat window, message history, tool-call/result display, and confirmation dialogs for write actions.",
@@ -124,10 +126,10 @@ DEV_NOTES = [
 ]
 
 FUTURE = [
-    ("Write-tool confirmation is not actually enforced", [
-        "Every write tool's confirm parameter is just another argument in the call \u2014 the server has no way to know whether a human saw the preview. Nothing stops a model calling a write tool with confirm=true on its first call; \"always preview first\" is a rule in the tool description and instructions.md, not something the server enforces. The only real protection today is the host's own permission prompt, which won't exist in the standalone app.",
+    ("Write-tool confirmation: now enforced by the server (remaining gaps)", [
+        "Until 2026-11-08 the confirm parameter was just another argument in the call, so nothing stopped a model from applying a write on its first call. The server now asks the client to prompt the human directly, outside the model's context, and writes only on an explicit yes. What remains: the approve path has only been exercised by an opt-in test that is still to be run by hand, and the standalone app's own confirmation dialog does not exist until Phase 4.",
     ], [
-        "<b>MCP elicitation (the fix) \u2014 scheduled for Phase 3.</b> The server asks the client to prompt the human directly, outside the model's context, and waits for the answer. We'll build it together with our own client.",
+        "<b>MCP elicitation \u2014 built.</b> The server asks the client to prompt the human directly, outside the model's context, and waits for the answer.",
         "<b>What we found (probe run 2026-11-02):</b> Claude Code tells the server it supports elicitation (form and URL modes). In a terminal session the dialog appears and the answer returns to the server. In the Desktop app's Code tab it declines local requests without showing anything, so it can't gate writes there.",
         "<b>Required design:</b> the write proceeds only when the response is an accept with an explicit true. A decline, a cancel, a missing value, or a client without elicitation support all block the write. In the terminal test, an accepted form with the checkbox unticked came back with no value, so a missing value must never count as yes.",
         "<b>Preview token (minor, defense-in-depth only).</b> It forces two round trips but still returns through the channel the model reads \u2014 not a substitute for elicitation.",
