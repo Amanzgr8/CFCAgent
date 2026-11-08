@@ -6,7 +6,8 @@ using Microsoft.Extensions.AI;
 // whole stack can be tested without a UI. Modes: interactive chat, --list-tools, and
 // --call <tool> --args <json>, which runs read tools only (update_ and set_ tools are refused).
 // Uses the Anthropic model when ANTHROPIC_API_KEY is set, otherwise the stub. Changes are
-// confirmed by typing yes at the console prompt.
+// confirmed by typing yes at the console prompt. --read-only hides every tool the server does
+// not declare read-only, so the model in that session cannot change data at all.
 const string DefaultModel = "claude-sonnet-5-5";
 
 string? FindRepoRoot()
@@ -54,14 +55,18 @@ McpConnectionOptions connection = new McpConnectionOptions
 
 await using McpToolHost host = await McpToolHost.ConnectAsync(connection);
 
+bool readOnly = args.Contains("--read-only");
+IReadOnlyList<AITool> tools = readOnly ? ToolFilter.ReadOnlyTools(host.Tools) : host.Tools;
+string readOnlyNote = readOnly ? $"; read-only: {host.Tools.Count - tools.Count} write tool(s) hidden" : "";
+
 if (args.Contains("--list-tools"))
 {
-    foreach (AITool tool in host.Tools)
+    foreach (AITool tool in tools)
     {
         Console.WriteLine(tool.Name);
     }
 
-    Console.WriteLine($"({host.Tools.Count} tools; instructions {host.ServerInstructions?.Length ?? 0} chars)");
+    Console.WriteLine($"({tools.Count} tools; instructions {host.ServerInstructions?.Length ?? 0} chars{readOnlyNote})");
     return 0;
 }
 
@@ -75,7 +80,7 @@ if (callName is not null)
         return 2;
     }
 
-    AIFunction? function = host.Tools.OfType<AIFunction>().FirstOrDefault(t => t.Name == callName);
+    AIFunction? function = tools.OfType<AIFunction>().FirstOrDefault(t => t.Name == callName);
     if (function is null)
     {
         Console.Error.WriteLine($"No such tool: {callName}");
@@ -102,8 +107,15 @@ else
     chatClient = new AnthropicClient().AsIChatClient(model, 4096);
 }
 
-ChatSession session = new ChatSession(chatClient, host.Tools, host.ServerInstructions);
-Console.WriteLine($"Connected: {host.Tools.Count} tools. Type a message, or 'exit' to quit.");
+string? systemPrompt = host.ServerInstructions;
+if (readOnly)
+{
+    systemPrompt += "\n\n## This session is read-only\n\nNo write tools are available in this session, whatever the instructions above say. " +
+                    "If the user asks for a change, say you cannot make it here and tell them how to make it in the app.";
+}
+
+ChatSession session = new ChatSession(chatClient, tools, systemPrompt);
+Console.WriteLine($"Connected: {tools.Count} tools{(readOnly ? " (read-only session)" : "")}. Type a message, or 'exit' to quit.");
 
 while (true)
 {

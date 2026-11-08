@@ -11,7 +11,7 @@ namespace CFCAgent.McpServer.Tools;
 [McpServerToolType]
 public static class DocsTool
 {
-    [McpServerTool(Name = "search_docs")]
+    [McpServerTool(Name = "search_docs", ReadOnly = true)]
     [Description("Search the product documentation (user guide) for sections matching a keyword or phrase. Returns matching doc name, section title, and a short snippet - call read_section with the exact doc/title to get the full text.")]
     public static string SearchDocs(
         IServiceProvider services,
@@ -31,7 +31,7 @@ public static class DocsTool
         return JsonSerializer.Serialize(matches);
     }
 
-    [McpServerTool(Name = "read_section")]
+    [McpServerTool(Name = "read_section", ReadOnly = true)]
     [Description("Get the full text of one documentation section, by doc name and exact section title (as returned by search_docs).")]
     public static string ReadSection(
         IServiceProvider services,
