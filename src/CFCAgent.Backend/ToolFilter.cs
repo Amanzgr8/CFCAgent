@@ -14,12 +14,17 @@ public static class ToolFilter
         return tool.Annotations?.ReadOnlyHint == true;
     }
 
+    public static bool IsDeclaredReadOnly(AITool tool)
+    {
+        return tool is McpClientTool mcpTool && IsDeclaredReadOnly(mcpTool.ProtocolTool);
+    }
+
     public static IReadOnlyList<AITool> ReadOnlyTools(IEnumerable<AITool> tools)
     {
         List<AITool> kept = new List<AITool>();
         foreach (AITool tool in tools)
         {
-            if (tool is McpClientTool mcpTool && IsDeclaredReadOnly(mcpTool.ProtocolTool))
+            if (IsDeclaredReadOnly(tool))
             {
                 kept.Add(tool);
             }

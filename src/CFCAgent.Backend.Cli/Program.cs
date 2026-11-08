@@ -4,10 +4,11 @@ using Microsoft.Extensions.AI;
 
 // Console host for the backend: wires McpToolHost, ChatSession and a model together so the
 // whole stack can be tested without a UI. Modes: interactive chat, --list-tools, and
-// --call <tool> --args <json>, which runs read tools only (update_ and set_ tools are refused).
-// Uses the Anthropic model when ANTHROPIC_API_KEY is set, otherwise the stub. Changes are
-// confirmed by typing yes at the console prompt. --read-only hides every tool the server does
-// not declare read-only, so the model in that session cannot change data at all.
+// --call <tool> --args <json>, which runs read tools only (anything not declared read-only is refused),
+// and --write <tool> --args <json>, which runs one write tool by hand. Uses the Anthropic model when
+// ANTHROPIC_API_KEY is set, otherwise the stub. Changes are confirmed by typing yes at the console
+// prompt. --read-only hides every tool the server does not declare read-only, so the model in that
+// session cannot change data at all.
 const string DefaultModel = "claude-sonnet-5-5";
 
 string? FindRepoRoot()
@@ -71,19 +72,34 @@ if (args.Contains("--list-tools"))
 }
 
 string? callName = GetOption("--call");
-if (callName is not null)
+string? writeName = GetOption("--write");
+if (callName is not null || writeName is not null)
 {
-    // Verification aid: write tools are refused here so this path can never change data.
-    if (callName.StartsWith("update_", StringComparison.Ordinal) || callName.StartsWith("set_", StringComparison.Ordinal))
+    string toolName = (callName ?? writeName)!;
+
+    // --call is a verification aid that can never change data: it refuses anything the server
+    // does not declare read-only. --write is the explicit way to run a write tool: without
+    // "confirm": true in --args it only previews, and with it the server asks for approval,
+    // which shows up here as the console prompt (type yes to apply).
+    AIFunction? function = tools.OfType<AIFunction>().FirstOrDefault(t => t.Name == toolName);
+    if (function is null)
     {
-        Console.Error.WriteLine("--call only runs read tools.");
+        Console.Error.WriteLine(readOnly && writeName is not null
+            ? "--write cannot be combined with --read-only."
+            : $"No such tool: {toolName}");
         return 2;
     }
 
-    AIFunction? function = tools.OfType<AIFunction>().FirstOrDefault(t => t.Name == callName);
-    if (function is null)
+    bool declaredReadOnly = ToolFilter.IsDeclaredReadOnly(function);
+    if (callName is not null && !declaredReadOnly)
     {
-        Console.Error.WriteLine($"No such tool: {callName}");
+        Console.Error.WriteLine("--call only runs read tools. Use --write for tools that change data.");
+        return 2;
+    }
+
+    if (writeName is not null && declaredReadOnly)
+    {
+        Console.Error.WriteLine("--write is for tools that change data. Use --call for read tools.");
         return 2;
     }
 
