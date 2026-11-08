@@ -23,7 +23,7 @@ namespace CFCAgent.McpServer.Tools;
 public sealed class BinderWriteTool(NpgsqlDataSource dataSource)
 {
     [McpServerTool(Name = "set_ingredient_binder")]
-    [Description("Set or clear an ingredient's binder relationship (bindingagentid, base amount, required amount), identified by its exact code. To set a binder, supply binder_code, base_amount, and required_amount together. To clear the binder, omit binder_code (or pass an empty string). ALWAYS previews first - call without confirm (or confirm=false) to see exactly what would change, show that preview to the user, and only call again with confirm=true once they've agreed. Never set confirm=true on the first call.")]
+    [Description("Set or clear an ingredient's binder relationship (bindingagentid, base amount, required amount), identified by its exact code. To set a binder, supply binder_code, base_amount, and required_amount together. To clear the binder, omit binder_code (or pass an empty string). ALWAYS previews first - call without confirm (or confirm=false) to see exactly what would change, show that preview to the user in your reply, then call again with the same arguments plus confirm=true - but only if the user actually asked for this change (not a what-if question). The server then asks the user to approve the exact change in a confirmation prompt, so do not ask for a separate yes in chat. Never set confirm=true on the first call.")]
     public async Task<string> SetIngredientBinder(
         ProtocolMcpServer server,
         [Description("Exact code of the ingredient to configure, as shown in the app.")] string code,

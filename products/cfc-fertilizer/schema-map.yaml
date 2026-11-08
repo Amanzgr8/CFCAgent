@@ -360,8 +360,7 @@ write_tools:
       Update one or more fields on an existing ingredient, identified by its exact
       code: cost, active flag, in-stock flag, and/or binding-agent flag. ALWAYS
       previews first - call without confirm (or confirm=false) to see exactly what
-      would change, show that preview to the user, and only call again with
-      confirm=true once they've agreed. Never set confirm=true on the first call. To
+      would change, show that preview to the user in your reply, then call again with the same arguments plus confirm=true - but only if the user actually asked for this change (not a what-if question). The server then asks the user to approve the exact change in a confirmation prompt, so do not ask for a separate yes in chat. Never set confirm=true on the first call. To
       set up a binder *relationship* on another ingredient (which binder it uses, in
       what ratio), use set_ingredient_binder instead - this tool only flags an
       ingredient as eligible to BE a binder.
@@ -394,9 +393,7 @@ write_tools:
     description: >
       Update one or more fields on an existing customer, identified by its exact
       code: name, address, phone, and/or active flag. ALWAYS previews first - call
-      without confirm (or confirm=false) to see exactly what would change, show
-      that preview to the user, and only call again with confirm=true once they've
-      agreed. Never set confirm=true on the first call. State is not writable here -
+      without confirm (or confirm=false) to see exactly what would change, show that preview to the user in your reply, then call again with the same arguments plus confirm=true - but only if the user actually asked for this change (not a what-if question). The server then asks the user to approve the exact change in a confirmation prompt, so do not ask for a separate yes in chat. Never set confirm=true on the first call. State is not writable here -
       ask the user to change it in the app.
     table: customer
     display_column: customername
@@ -439,8 +436,7 @@ write_tools:
     description: >
       Update one or more fields on an existing nutrient, identified by its exact
       number: name and/or active flag. ALWAYS previews first - call without confirm
-      (or confirm=false) to see exactly what would change, show that preview to the
-      user, and only call again with confirm=true once they've agreed. Never set
+      (or confirm=false) to see exactly what would change, show that preview to the user in your reply, then call again with the same arguments plus confirm=true - but only if the user actually asked for this change (not a what-if question). The server then asks the user to approve the exact change in a confirmation prompt, so do not ask for a separate yes in chat. Never set
       confirm=true on the first call. Total Nitrogen (1), Phosphate (6), and
       Potassium (7) are required and must stay active - the database does not
       enforce this, so refuse (don't apply) an is_active=false change for those
@@ -470,9 +466,7 @@ write_tools:
       user-entered inputs to formulation, not solver output, so they're safe to
       change here - unlike the formula's ingredient mix/solution, which only the
       solver (Formulate in the app) can produce. ALWAYS previews first - call
-      without confirm (or confirm=false) to see exactly what would change, show
-      that preview to the user, and only call again with confirm=true once they've
-      agreed. Never set confirm=true on the first call.
+      without confirm (or confirm=false) to see exactly what would change, show that preview to the user in your reply, then call again with the same arguments plus confirm=true - but only if the user actually asked for this change (not a what-if question). The server then asks the user to approve the exact change in a confirmation prompt, so do not ask for a separate yes in chat. Never set confirm=true on the first call.
     table: product
     display_column: productname
     keys:
@@ -513,8 +507,7 @@ write_tools:
       infeasible (see get_formula_nutrients and the infeasibility ground rules).
       Soil-test formulas: lbs/acre. Grade formulas: percent of the mix. ALWAYS
       previews first - call without confirm (or confirm=false) to see exactly
-      what would change, show that preview to the user, and only call again with
-      confirm=true once they've agreed. Never set confirm=true on the first call.
+      what would change, show that preview to the user in your reply, then call again with the same arguments plus confirm=true - but only if the user actually asked for this change (not a what-if question). The server then asks the user to approve the exact change in a confirmation prompt, so do not ask for a separate yes in chat. Never set confirm=true on the first call.
     table: productnutrient
     keys:
       - column: productid
@@ -550,8 +543,7 @@ write_tools:
       or to exclude an ingredient. Unit depends on the formula's existing
       productingredientunitid for that row (see get_formula_ingredients). ALWAYS
       previews first - call without confirm (or confirm=false) to see exactly
-      what would change, show that preview to the user, and only call again with
-      confirm=true once they've agreed. Never set confirm=true on the first call.
+      what would change, show that preview to the user in your reply, then call again with the same arguments plus confirm=true - but only if the user actually asked for this change (not a what-if question). The server then asks the user to approve the exact change in a confirmation prompt, so do not ask for a separate yes in chat. Never set confirm=true on the first call.
     table: productingredient
     keys:
       - column: productid
