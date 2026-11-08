@@ -81,7 +81,9 @@ PHASES = [
         "<b>Done:</b> the CLI has --list-tools, --call (read tools only), --write (runs one write tool by hand, with the real console prompt) and --read-only (hides every tool the server does not declare read-only, so a model session cannot change data).",
         "<b>Done:</b> server-side elicitation. A write call with confirm=true is only a request: the server asks the client to show the exact preview and writes only on an accepted form with an explicit true. A client that cannot prompt, a decline, a cancel, a timeout or any error means nothing is written. Applies to all 7 write tools (the 6 schema-map tools and set_ingredient_binder).",
         "<b>Tests:</b> unit tests of the approval rule, and end-to-end tests that drive the real server with scripted answers (preview never asks; decline, cancel and no-prompt-support write nothing). One test that approves, applies and restores a real change is skipped unless explicitly enabled, and is still to be run by hand.",
-        "<b>Not yet done:</b> the live Claude conversation through the backend (needs an API key in the user's own environment); loading product and tenant config at session start, replacing today's two environment variables; the manual approve-and-restore check in the CLI.",
+        "<b>Done:</b> tenant setup and config loading. A small tenant.json holds the tenant name and product config path; the database connection string is stored in Windows Credential Manager, entered once with the CLI's --setup (typing hidden) and read back by the backend, which hands it to the server it launches. --test-connection runs a new read-only check_database_connection tool; --forget removes the setup. With no tenant.json the old environment-variable behaviour still works. The storage sits behind an ICredentialStore interface, and the same TenantSettings class is what the desktop app's settings screen will call.",
+        "<b>Verified by hand:</b> the approve-and-restore checks in the CLI and the opt-in tests for both write paths (update_ingredient and set_ingredient_binder) all passed against the live database, and each restored what it changed.",
+        "<b>Not yet done:</b> the live Claude conversation through the backend (needs an API key in the user's own environment), and a first real --setup run by hand.",
         "<b>Consequence:</b> the Desktop app's Code tab declines the prompt, so write tools called from there are now blocked. Writes work through our own client and Claude Code in a terminal.",
     ]),
     ("Phase 4 \u2014 Desktop frontend", "Not started", [
@@ -137,9 +139,12 @@ FUTURE = [
     ("Audit trail is log lines, not a durable record", [
         "Every applied write logs a line to stderr (timestamp, tool, key, old/new values). The client only keeps a server's stderr from startup, so these lines are effectively lost. Before customer use this needs a real store (a small audit table in Postgres, or a per-install log file the desktop app owns) plus a per-user identity, once Phase 7's auth lands.",
     ], []),
-    ("The MCP server has no credential store of its own", [
-        "The server reads one full connection string, password included, from an environment variable. Both the bundled Postgres connector (OS keyring) and the CFC Fertilizer app itself (DPAPI-encrypted, PostgresMachineConfig.cs) already solve this properly; the server should adopt the same pattern.",
-    ], []),
+    ("Database credentials: now in Windows Credential Manager (remaining gaps)", [
+        "The backend now keeps each tenant's connection string in Windows Credential Manager and passes it to the server it launches, in that process's environment only. What remains: the server itself still reads a plain environment variable if it is started without the backend (for example by the Claude app), the store is Windows-only, and any process running as the same Windows user can read it. Whether the assistant could reuse the connection the CFC app already stores (DPAPI-encrypted, PostgresMachineConfig.cs), so users enter nothing twice, has not been checked.",
+    ], [
+        "<b>Portable storage:</b> ICredentialStore is the seam. A macOS Keychain or Linux Secret Service implementation can be added behind it without touching the rest of the backend.",
+        "<b>Read-only database user:</b> give the read tools a separate account that cannot write, so reads can never change data even if a tool has a bug.",
+    ]),
     ("Some rules are instructions, not code", [
         "Total Nitrogen (1), Phosphate (6), and Potassium (7) must stay active, but only instructions.md says so: update_nutrient itself would apply the change. Enforce it in the tool.",
     ], []),
