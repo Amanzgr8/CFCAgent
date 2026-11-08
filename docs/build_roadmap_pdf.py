@@ -143,6 +143,14 @@ FUTURE = [
     ("Some rules are instructions, not code", [
         "Total Nitrogen (1), Phosphate (6), and Potassium (7) must stay active, but only instructions.md says so: update_nutrient itself would apply the change. Enforce it in the tool.",
     ], []),
+    ("The server only works with PostgreSQL (SQL Server support is planned for Phase 6)", [
+        "The MCP layer, the preview-and-approve flow, the instructions, the backend and the CLI are engine-neutral, but the data access is not. Program.cs creates an NpgsqlDataSource, and the read engine, the write engine and the binder tool all open Npgsql connections directly. The SQL in schema-map.yaml uses PostgreSQL syntax: ILIKE for case-insensitive search, LIMIT @limit, and || to join strings. A Microsoft SQL Server product would need different syntax for each.",
+    ], [
+        "<b>Put the database behind a small abstraction:</b> open a connection, start a transaction, bind parameters, using System.Data.Common with Npgsql and Microsoft.Data.SqlClient as the two drivers.",
+        "<b>Let each product's schema map name its engine</b>, and add a small dialect layer for row limits, case-insensitive matching and string concatenation. Boolean handling (smallint, tested with <> 0) and identifier quoting differ by engine too.",
+        "<b>Write the SQL per product and engine.</b> A SQL Server product would ship its own schema map. This is likely the largest part of the work.",
+        "<b>Do it with a real second product in Phase 6</b>, not ahead of time. An abstraction designed without a real SQL Server database to test against tends to be wrong. Until then, keep SQL in the schema map and out of C#. The one exception is the binder tool's hand-written SQL, which is plain and should port easily but needs checking.",
+    ]),
 ]
 
 
