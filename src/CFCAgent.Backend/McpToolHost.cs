@@ -37,6 +37,11 @@ public sealed class McpToolHost : IAsyncDisposable
             },
         };
 
+        if (options.DatabaseConnectionString is not null)
+        {
+            transportOptions.EnvironmentVariables["CFCCHATBOT_DB_CONNECTION_STRING"] = options.DatabaseConnectionString;
+        }
+
         if (options.OnServerLog is not null)
         {
             Action<string> log = options.OnServerLog;
