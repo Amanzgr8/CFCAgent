@@ -3,6 +3,7 @@ using System.Text;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using Npgsql;
+using ProtocolMcpServer = ModelContextProtocol.Server.McpServer;
 
 namespace CFCAgent.McpServer.Tools;
 
@@ -24,11 +25,12 @@ public sealed class BinderWriteTool(NpgsqlDataSource dataSource)
     [McpServerTool(Name = "set_ingredient_binder")]
     [Description("Set or clear an ingredient's binder relationship (bindingagentid, base amount, required amount), identified by its exact code. To set a binder, supply binder_code, base_amount, and required_amount together. To clear the binder, omit binder_code (or pass an empty string). ALWAYS previews first - call without confirm (or confirm=false) to see exactly what would change, show that preview to the user, and only call again with confirm=true once they've agreed. Never set confirm=true on the first call.")]
     public async Task<string> SetIngredientBinder(
+        ProtocolMcpServer server,
         [Description("Exact code of the ingredient to configure, as shown in the app.")] string code,
         [Description("Exact code of the binder ingredient. Must itself be an active ingredient flagged as a binding agent. Omit or pass empty to clear this ingredient's binder.")] string? binder_code = null,
         [Description("Base amount (lbs) this ingredient's binder ratio applies to. Required when setting a binder.")] double? base_amount = null,
         [Description("Required amount of binder per base amount (lbs, or gallons for a liquid binder). Required when setting a binder.")] double? required_amount = null,
-        [Description("Set to true to apply the change. Omit or set to false to preview it first (recommended default) - nothing is written to the database until confirm=true.")] bool confirm = false,
+        [Description("Set to true to request the change. Omit or set to false to preview it first (recommended default) - nothing is written to the database until confirm=true AND the user approves the confirmation prompt the server then shows.")] bool confirm = false,
         CancellationToken cancellationToken = default)
     {
         bool clearing = string.IsNullOrWhiteSpace(binder_code);
@@ -128,6 +130,21 @@ public sealed class BinderWriteTool(NpgsqlDataSource dataSource)
                    "Call set_ingredient_binder again with the same arguments plus confirm=true to apply this exact change.";
         }
 
+        // confirm=true is only a request: the server asks the client to put this exact preview
+        // in front of the user and writes only on an explicit yes (see WriteApproval).
+        try
+        {
+            await WriteApproval.RequireAsync(
+                server,
+                $"set_ingredient_binder: apply this change to ingredient {subject}?\n{summary}",
+                cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+
         await using (NpgsqlCommand updateCommand = connection.CreateCommand())
         {
             updateCommand.Transaction = transaction;
@@ -144,7 +161,7 @@ public sealed class BinderWriteTool(NpgsqlDataSource dataSource)
         await transaction.CommitAsync(cancellationToken);
 
         Console.Error.WriteLine(
-            $"[Audit] {DateTimeOffset.UtcNow:O} set_ingredient_binder ingredient.ingredientcode={code}: binder {oldBinderLabel} -> {newBinderLabel}");
+            $"[Audit] {DateTimeOffset.UtcNow:O} set_ingredient_binder ingredient.ingredientcode={code} (approved by user via elicitation): binder {oldBinderLabel} -> {newBinderLabel}");
 
         return $"Applied - ingredient {subject}:\n{summary}Change committed.";
     }

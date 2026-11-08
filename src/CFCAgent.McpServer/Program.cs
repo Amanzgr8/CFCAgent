@@ -94,6 +94,13 @@ else
     }
 }
 
+// Every tool reaches the server through the three calls below, but tools are defined four ways:
+//   1. dynamicTools - read tools generated from schema-map.yaml (SchemaMapReadToolProvider)
+//   2. writeTools   - write tools generated from schema-map.yaml (SchemaMapWriteToolProvider)
+//   3. writeTools   - hand-written write tool built above and appended by hand (BinderWriteTool)
+//   4. WithToolsFromAssembly - hand-written tools the SDK finds by scanning (DocsTool)
+// Every write tool (2 and 3) asks the connected client to confirm each change before writing
+// it; see WriteApproval.
 builder.Services
     .AddMcpServer(options => options.ServerInstructions = serverInstructions)
     .WithStdioServerTransport()

@@ -4,6 +4,7 @@ using CFCAgent.McpServer.Config;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol;
 using Npgsql;
+using ProtocolMcpServer = ModelContextProtocol.Server.McpServer;
 
 namespace CFCAgent.McpServer.Tools;
 
@@ -12,7 +13,8 @@ namespace CFCAgent.McpServer.Tools;
 // business keys - no C# needed per writable table, same spirit as SchemaMapReadFunction
 // for reads. Always previews first: a call without confirm=true never touches the
 // database, it only reads the current values and reports what WOULD change. Only
-// confirm=true runs the UPDATE, inside a transaction, and logs an audit line to stderr.
+// confirm=true asks the user to approve the exact change (WriteApproval) and, only on a yes,
+// runs the UPDATE inside a transaction and logs an audit line to stderr.
 internal sealed class SchemaMapWriteFunction : AIFunction
 {
     private readonly WriteToolDefinition _definition;
@@ -141,6 +143,23 @@ internal sealed class SchemaMapWriteFunction : AIFunction
                    $"Call {_definition.Name} again with the same arguments plus confirm=true to apply this exact change.";
         }
 
+        // confirm=true is only a request. The server asks the client to put this exact preview
+        // in front of the user and applies the change only on an explicit yes; anything else
+        // (no prompt support, decline, timeout) throws here and nothing is written.
+        ProtocolMcpServer? server = arguments.Services?.GetService(typeof(ProtocolMcpServer)) as ProtocolMcpServer;
+        try
+        {
+            await WriteApproval.RequireAsync(
+                server,
+                $"{_definition.Name}: apply this change to {_definition.Table} {subject}?\n{summary}",
+                cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+
         await using NpgsqlCommand updateCommand = connection.CreateCommand();
         updateCommand.Transaction = transaction;
         string setClause = string.Join(", ", changes.Select((c, i) => $"{c.Field.Column} = @set{i}"));
@@ -159,7 +178,7 @@ internal sealed class SchemaMapWriteFunction : AIFunction
         await transaction.CommitAsync(cancellationToken);
 
         Console.Error.WriteLine(
-            $"[Audit] {DateTimeOffset.UtcNow:O} {_definition.Name} {_definition.Table}[{keySubject}]: " +
+            $"[Audit] {DateTimeOffset.UtcNow:O} {_definition.Name} {_definition.Table}[{keySubject}] (approved by user via elicitation): " +
             string.Join("; ", changes.Select(c => $"{c.Field.Column} {FormatValue(currentValues.GetValueOrDefault(c.Field.Column), c.Field.Type)} -> {FormatValue(c.NewValue, c.Field.Type)}")));
 
         return $"Applied - {_definition.Table} {subject}:\n{summary}Change committed.";
@@ -248,7 +267,7 @@ internal sealed class SchemaMapWriteFunction : AIFunction
         properties["confirm"] = new Dictionary<string, object?>
         {
             ["type"] = "boolean",
-            ["description"] = "Set to true to apply the change. Omit or set to false to preview it first (recommended default) - nothing is written to the database until confirm=true.",
+            ["description"] = "Set to true to request the change. Omit or set to false to preview it first (recommended default) - nothing is written to the database until confirm=true AND the user approves the confirmation prompt the server then shows.",
         };
 
         Dictionary<string, object> schema = new()

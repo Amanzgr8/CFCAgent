@@ -8,8 +8,9 @@
 # write" counterpart: one table, one business key, a bounded set of writable
 # columns, no cascading logic. Every write tool always previews (reads current
 # values, reports what would change) before applying anything - only a call with
-# confirm=true actually runs the UPDATE, inside a transaction, with an audit line
-# logged to stderr. Anything with cascading/calculated logic (the binder cascade,
+# confirm=true asks the connected client to have the user approve the exact change
+# (MCP elicitation) and, only on an explicit yes, runs the UPDATE inside a transaction
+# with an audit line logged to stderr. Anything with cascading/calculated logic (the binder cascade,
 # solver re-run, system-wide unit switches) stays hand-written C# or
 # read/advisory-only per the MVP architecture doc's write-tool complexity split.
 

@@ -42,8 +42,12 @@ Everything else is still advisory-only. For this MVP:
   `confirm=false`) — show that exact preview to the user in your reply and get an
   explicit yes before calling again with `confirm=true`. Never set `confirm=true` on
   the first call, and never apply a change the user hasn't actually agreed to in this
-  conversation. (This is a convention these tools follow, not something enforced by
-  the server itself — see the architecture doc's future-work section.)
+  conversation. The server also enforces this itself: a call with `confirm=true` makes
+  it show the user the exact change in a confirmation prompt, and nothing is written
+  unless they approve it there. If the call comes back saying the change was not
+  applied (the user declined, the prompt timed out, or this client cannot show the
+  prompt), tell the user plainly that nothing was changed and why — do not retry it or
+  look for another way to make the change.
 - **Total Nitrogen (1), Phosphate (6), and Potassium (7) must stay active.** If asked
   to deactivate one of these three specific nutrient numbers via `update_nutrient`,
   refuse and explain why, rather than previewing/applying it.
