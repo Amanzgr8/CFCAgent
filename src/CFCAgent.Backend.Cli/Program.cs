@@ -8,7 +8,8 @@ using Microsoft.Extensions.AI;
 // and --write <tool> --args <json>, which runs one write tool by hand. Uses the Anthropic model when
 // ANTHROPIC_API_KEY is set, otherwise the stub. Changes are confirmed by typing yes at the console
 // prompt. --read-only hides every tool the server does not declare read-only, so the model in that
-// session cannot change data at all.
+// session cannot change data at all. The server's routine log lines are hidden (only audit lines
+// and warnings or errors show) unless --verbose is given.
 const string DefaultModel = "claude-sonnet-5-5";
 
 string? FindRepoRoot()
@@ -45,13 +46,21 @@ string productConfig = GetOption("--product-config")
 string serverDll = GetOption("--server-dll")
     ?? Path.Combine(repoRoot, "src", "CFCAgent.McpServer", "bin", "Debug", "net10.0", "CFCAgent.McpServer.dll");
 
+bool verbose = args.Contains("--verbose");
+
 McpConnectionOptions connection = new McpConnectionOptions
 {
     Command = "dotnet",
     Arguments = new[] { serverDll },
     ProductConfigPath = productConfig,
     ConfirmAsync = ConfirmOnConsoleAsync,
-    OnServerLog = line => Console.Error.WriteLine($"[server] {line}"),
+    OnServerLog = line =>
+    {
+        if (verbose || ServerLogFilter.IsImportant(line))
+        {
+            Console.Error.WriteLine($"[server] {line}");
+        }
+    },
 };
 
 await using McpToolHost host = await McpToolHost.ConnectAsync(connection);

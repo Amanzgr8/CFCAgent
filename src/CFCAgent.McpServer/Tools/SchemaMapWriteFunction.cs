@@ -147,17 +147,15 @@ internal sealed class SchemaMapWriteFunction : AIFunction
         // in front of the user and applies the change only on an explicit yes; anything else
         // (no prompt support, decline, timeout) throws here and nothing is written.
         ProtocolMcpServer? server = arguments.Services?.GetService(typeof(ProtocolMcpServer)) as ProtocolMcpServer;
-        try
-        {
-            await WriteApproval.RequireAsync(
-                server,
-                $"{_definition.Name}: apply this change to {_definition.Table} {subject}?\n{summary}",
-                cancellationToken);
-        }
-        catch
+        string? notApproved = await WriteApproval.RequestApprovalAsync(
+            server,
+            $"{_definition.Name}: apply this change to {_definition.Table} {subject}?\n{summary}",
+            cancellationToken);
+        if (notApproved is not null)
         {
             await transaction.RollbackAsync(CancellationToken.None);
-            throw;
+            Console.Error.WriteLine($"[Audit] {DateTimeOffset.UtcNow:O} {_definition.Name} {_definition.Table}[{keySubject}]: not applied - {notApproved}");
+            return notApproved;
         }
 
         await using NpgsqlCommand updateCommand = connection.CreateCommand();

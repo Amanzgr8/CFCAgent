@@ -1,5 +1,4 @@
 using System.Text.Json;
-using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ProtocolMcpServer = ModelContextProtocol.Server.McpServer;
 
@@ -41,19 +40,20 @@ public static class WriteApproval
         return true;
     }
 
-    public static async Task RequireAsync(ProtocolMcpServer? server, string message, CancellationToken cancellationToken)
+    // Returns null when the user approved. Otherwise returns the reason the change must not be
+    // applied, worded for the model and the user; the caller rolls back and returns it as the
+    // tool's result. A "no" is a normal outcome, so it is a result, not an exception.
+    public static async Task<string?> RequestApprovalAsync(ProtocolMcpServer? server, string message, CancellationToken cancellationToken)
     {
         if (server is null)
         {
-            throw new McpException(
-                "This change was not applied: the server could not reach the client to ask the user for confirmation. Nothing was changed.");
+            return "This change was not applied: the server could not reach the client to ask the user for confirmation. Nothing was changed.";
         }
 
         if (server.ClientCapabilities?.Elicitation is null)
         {
-            throw new McpException(
-                "This change was not applied: this client cannot show the confirmation prompt the server requires for every change. " +
-                "Nothing was changed. Make the change from a client that supports it (the CFC Agent app, or Claude Code in a terminal), or in the CFC app.");
+            return "This change was not applied: this client cannot show the confirmation prompt the server requires for every change. " +
+                   "Nothing was changed. Make the change from a client that supports it (the CFC Agent app, or Claude Code in a terminal), or in the CFC app.";
         }
 
         using CancellationTokenSource answerWindow = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -66,19 +66,16 @@ public static class WriteApproval
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new McpException(
-                $"This change was not applied: the user did not answer within {AnswerTimeout.TotalMinutes:0} minutes. Nothing was changed.");
+            return $"This change was not applied: the user did not answer within {AnswerTimeout.TotalMinutes:0} minutes. Nothing was changed.";
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            throw new McpException(
-                "This change was not applied: the confirmation prompt could not be completed. Nothing was changed.", ex);
+            return $"This change was not applied: the confirmation prompt could not be completed ({ex.GetType().Name}). Nothing was changed.";
         }
 
-        if (!IsApproved(result.Action, result.Content))
-        {
-            throw new McpException("This change was not applied: the user did not approve it. Nothing was changed.");
-        }
+        return IsApproved(result.Action, result.Content)
+            ? null
+            : "This change was not applied: the user did not approve it. Nothing was changed.";
     }
 
     private static ElicitRequestParams BuildRequest(string message)

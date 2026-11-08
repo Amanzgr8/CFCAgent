@@ -31,7 +31,8 @@ public class WriteApprovalIntegrationTests
     public async Task ConfirmTrue_UserDeclines_NothingIsApplied()
     {
         int asked = 0;
-        await using McpToolHost host = await ConnectAsync((message, ct) => { asked++; return Task.FromResult(false); });
+        List<string> serverLog = new List<string>();
+        await using McpToolHost host = await ConnectAsync((message, ct) => { asked++; return Task.FromResult(false); }, line => { lock (serverLog) { serverLog.Add(line); } });
         string costBefore = await CurrentCostAsync(host);
 
         string result = await CallAsync(host, "update_ingredient", new Dictionary<string, object?> { ["code"] = IngredientCode, ["owncost"] = double.Parse(costBefore), ["confirm"] = true });
@@ -40,6 +41,13 @@ public class WriteApprovalIntegrationTests
         Assert.Contains("not applied", result);
         Assert.DoesNotContain("Change committed", result);
         Assert.Equal(costBefore, await CurrentCostAsync(host));
+
+        // A decline is a normal outcome: one audit line, and the server must not log it as a crash.
+        await WaitForLogAsync(serverLog, line => line.StartsWith("[Audit]", StringComparison.Ordinal) && line.Contains("not applied"));
+        lock (serverLog)
+        {
+            Assert.DoesNotContain(serverLog, line => line.Contains("unhandled exception"));
+        }
     }
 
     [FactIfDatabase]
@@ -134,7 +142,29 @@ public class WriteApprovalIntegrationTests
         throw new InvalidOperationException("Could not locate the repository root (CFCAgent.sln).");
     }
 
-    private static Task<McpToolHost> ConnectAsync(Func<string, CancellationToken, Task<bool>>? confirm)
+    private static async Task WaitForLogAsync(List<string> serverLog, Func<string, bool> predicate)
+    {
+        // The server's stderr is read on another thread, so the line can arrive just after the call returns.
+        for (int attempt = 0; attempt < 40; attempt++)
+        {
+            lock (serverLog)
+            {
+                if (serverLog.Any(predicate))
+                {
+                    return;
+                }
+            }
+
+            await Task.Delay(50);
+        }
+
+        lock (serverLog)
+        {
+            Assert.Fail("Expected server log line never arrived. Lines seen: " + string.Join(" | ", serverLog));
+        }
+    }
+
+    private static Task<McpToolHost> ConnectAsync(Func<string, CancellationToken, Task<bool>>? confirm, Action<string>? onServerLog = null)
     {
         string root = FindRepoRoot();
         string configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
@@ -146,6 +176,7 @@ public class WriteApprovalIntegrationTests
             Arguments = new[] { serverDll },
             ProductConfigPath = Path.Combine(root, "products", "cfc-fertilizer", "schema-map.yaml"),
             ConfirmAsync = confirm,
+            OnServerLog = onServerLog,
         });
     }
 

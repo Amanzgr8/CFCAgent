@@ -68,11 +68,12 @@ public class WriteApprovalTests
     }
 
     [Fact]
-    public async Task RequireAsync_NoServer_ThrowsAndSaysNothingWasChanged()
+    public async Task RequestApprovalAsync_NoServer_ReturnsAReasonAndSaysNothingWasChanged()
     {
-        ModelContextProtocol.McpException ex = await Assert.ThrowsAsync<ModelContextProtocol.McpException>(
-            () => WriteApproval.RequireAsync(null, "preview", CancellationToken.None));
+        string? reason = await WriteApproval.RequestApprovalAsync(null, "preview", CancellationToken.None);
 
-        Assert.Contains("Nothing was changed", ex.Message);
+        Assert.NotNull(reason);
+        Assert.Contains("not applied", reason);
+        Assert.Contains("Nothing was changed", reason);
     }
 }

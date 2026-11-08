@@ -132,17 +132,15 @@ public sealed class BinderWriteTool(NpgsqlDataSource dataSource)
 
         // confirm=true is only a request: the server asks the client to put this exact preview
         // in front of the user and writes only on an explicit yes (see WriteApproval).
-        try
-        {
-            await WriteApproval.RequireAsync(
-                server,
-                $"set_ingredient_binder: apply this change to ingredient {subject}?\n{summary}",
-                cancellationToken);
-        }
-        catch
+        string? notApproved = await WriteApproval.RequestApprovalAsync(
+            server,
+            $"set_ingredient_binder: apply this change to ingredient {subject}?\n{summary}",
+            cancellationToken);
+        if (notApproved is not null)
         {
             await transaction.RollbackAsync(CancellationToken.None);
-            throw;
+            Console.Error.WriteLine($"[Audit] {DateTimeOffset.UtcNow:O} set_ingredient_binder ingredient.ingredientcode={code}: not applied - {notApproved}");
+            return notApproved;
         }
 
         await using (NpgsqlCommand updateCommand = connection.CreateCommand())
