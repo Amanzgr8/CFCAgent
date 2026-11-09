@@ -184,8 +184,7 @@ else
 string? systemPrompt = host.ServerInstructions;
 if (readOnly)
 {
-    systemPrompt += "\n\n## This session is read-only\n\nNo write tools are available in this session, whatever the instructions above say. " +
-                    "If the user asks for a change, say you cannot make it here and tell them how to make it in the app.";
+    systemPrompt += ToolFilter.ReadOnlySessionNote;
 }
 
 ChatSession session = new ChatSession(chatClient, tools, systemPrompt);

@@ -35,6 +35,14 @@
         "resolved": "3.1.4",
         "contentHash": "5mj99LvCqrq3CNi06xYdyIAXOEh+5b33F2nErCzI5zWiDdLHXiPXEWFSUAF8zlIv0ZWqjZNCwHTQeAPYbF3pCg=="
       },
+      "Anthropic": {
+        "type": "Transitive",
+        "resolved": "13.4.0",
+        "contentHash": "EuYkx2rsxq49XqIkSM1oNhy9EBKI8QVJfZlNDsNZUCWELh2VVPC5E4BL1URPQxK0kFL2AEkVIa4ypdYVrXQLNQ==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.5.1"
+        }
+      },
       "CommunityToolkit.Mvvm": {
         "type": "Transitive",
         "resolved": "8.4.2",
@@ -164,6 +172,7 @@
       "cfcagent.app.core": {
         "type": "Project",
         "dependencies": {
+          "Anthropic": "[13.4.0, )",
           "CFCAgent.Backend": "[1.0.0, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )"
         }

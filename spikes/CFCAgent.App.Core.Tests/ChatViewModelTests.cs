@@ -110,7 +110,7 @@ public class ChatViewModelTests
     public async Task AFailure_BecomesANoticeInTheConversationAndTheAppKeepsWorking()
     {
         ChatSession session = new ChatSession(new FailingChatClient(), Array.Empty<AITool>(), null);
-        ChatViewModel viewModel = new ChatViewModel(session);
+        ChatViewModel viewModel = new ChatViewModel(session, "test");
         viewModel.Input = "anything";
 
         await viewModel.SendCommand.ExecuteAsync(null);

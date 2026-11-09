@@ -21,6 +21,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CFCAgent.App.Core\CFCAgent.App.Core.csproj" />
+    <!-- Build-order only: the connector tests launch the built server, they do not link to it. -->
+    <ProjectReference Include="..\..\src\CFCAgent.McpServer\CFCAgent.McpServer.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

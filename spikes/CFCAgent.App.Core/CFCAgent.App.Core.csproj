@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <!-- Claude client, used by LocalBackendConnector when ANTHROPIC_API_KEY is set. Same version as the CLI. -->
+    <PackageReference Include="Anthropic" Version="13.4.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -16,11 +16,23 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Stub model for now: it streams an echo word by word, with a short delay so the streaming is visible.
-            desktop.MainWindow = new MainWindow
+            // --demo runs on the echo-only stub with no database or server (handy for a quick look at the window).
+            // Otherwise the app connects to the real backend after the window opens, read-only.
+            bool demo = desktop.Args?.Contains("--demo") == true;
+            ChatViewModel viewModel = demo ? ChatViewModel.CreateDemo(TimeSpan.FromMilliseconds(60)) : new ChatViewModel();
+            MainWindow window = new MainWindow { DataContext = viewModel };
+
+            if (!demo)
             {
-                DataContext = ChatViewModel.CreateDemo(TimeSpan.FromMilliseconds(60)),
-            };
+                LocalBackendConnector connector = new LocalBackendConnector(new LocalBackendOptions());
+                window.Opened += async (_, _) => await viewModel.ConnectAsync(connector);
+            }
+
+            // Closing the app ends the MCP server child process. Run on the thread pool so waiting here
+            // cannot deadlock with the UI thread.
+            desktop.Exit += (_, _) => Task.Run(() => viewModel.DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(5));
+
+            desktop.MainWindow = window;
         }
 
         base.OnFrameworkInitializationCompleted();

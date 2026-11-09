@@ -22,6 +22,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CFCAgent.App.Core\CFCAgent.App.Core.csproj" />
+    <!-- Build-order only: the app launches the built MCP server as a child process; it does not link to it. -->
+    <ProjectReference Include="..\..\src\CFCAgent.McpServer\CFCAgent.McpServer.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

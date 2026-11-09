@@ -10,9 +10,11 @@ namespace CFCAgent.App.Core;
 // the Send and Stop commands. Sending shows the user's message at once, then fills an assistant
 // message piece by piece as the reply streams in. Stop cancels the reply being received. A failure
 // is shown as a notice in the conversation instead of crashing the app.
-public sealed partial class ChatViewModel : ObservableObject
+public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
 {
-    private readonly ChatSession _session;
+    private ChatSession? _session;
+    private ChatConnection? _connection;
+    private IChatConnector? _connector;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
@@ -22,9 +24,31 @@ public sealed partial class ChatViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
     private bool _isBusy;
 
-    public ChatViewModel(ChatSession session)
+    // Sending is only possible once a backend is connected.
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SendCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RetryConnectionCommand))]
+    private bool _isConnected;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RetryConnectionCommand))]
+    private bool _isConnecting;
+
+    // One line about the connection, shown in the window: what it is connected to, or why it is not.
+    [ObservableProperty]
+    private string _connectionStatus = "Not connected";
+
+    // A window that connects after it opens: use ConnectAsync to attach a backend.
+    public ChatViewModel()
+    {
+    }
+
+    // A window that is already connected to a session (used by the demo and the tests).
+    public ChatViewModel(ChatSession session, string connectionStatus)
     {
         _session = session;
+        _isConnected = true;
+        _connectionStatus = connectionStatus;
     }
 
     public ObservableCollection<ChatMessageViewModel> Messages { get; } = new ObservableCollection<ChatMessageViewModel>();
@@ -37,12 +61,64 @@ public sealed partial class ChatViewModel : ObservableObject
     public static ChatViewModel CreateDemo(TimeSpan streamDelay)
     {
         ChatSession session = new ChatSession(new StubChatClient(streamDelay), Array.Empty<AITool>(), null);
-        return new ChatViewModel(session);
+        return new ChatViewModel(session, "Demo: stub model, no database");
+    }
+
+    // Connects to a backend. A failure does not crash the app: it is shown as a notice in the conversation,
+    // the status line says "Not connected", and Retry can try again (for example after fixing the setup).
+    public async Task ConnectAsync(IChatConnector connector, CancellationToken cancellationToken = default)
+    {
+        _connector = connector;
+        IsConnecting = true;
+        ConnectionStatus = "Connecting...";
+        try
+        {
+            ChatConnection connection = await connector.ConnectAsync(cancellationToken);
+            _connection = connection;
+            _session = connection.Session;
+            ConnectionStatus = connection.Description;
+            IsConnected = true;
+        }
+        catch (OperationCanceledException)
+        {
+            ConnectionStatus = "Not connected (cancelled)";
+        }
+        catch (Exception ex)
+        {
+            ConnectionStatus = "Not connected";
+            Messages.Add(new ChatMessageViewModel(ChatAuthor.Notice, $"Could not connect: {ex.Message}"));
+        }
+        finally
+        {
+            IsConnecting = false;
+        }
+    }
+
+    private bool CanRetryConnection()
+    {
+        return !IsConnected && !IsConnecting && _connector is not null;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRetryConnection))]
+    private Task RetryConnectionAsync()
+    {
+        return ConnectAsync(_connector!);
+    }
+
+    // Shuts the backend down (ends the MCP server process). Safe to call more than once.
+    public async ValueTask DisposeAsync()
+    {
+        ChatConnection? connection = _connection;
+        _connection = null;
+        if (connection is not null)
+        {
+            await connection.DisposeAsync();
+        }
     }
 
     private bool CanSend()
     {
-        return !IsBusy && !string.IsNullOrWhiteSpace(Input);
+        return IsConnected && !IsBusy && !string.IsNullOrWhiteSpace(Input);
     }
 
     [RelayCommand(CanExecute = nameof(CanSend), IncludeCancelCommand = true)]
@@ -59,7 +135,7 @@ public sealed partial class ChatViewModel : ObservableObject
 
         try
         {
-            await foreach (ChatResponseUpdate update in _session.SendStreamingAsync(text, cancellationToken))
+            await foreach (ChatResponseUpdate update in _session!.SendStreamingAsync(text, cancellationToken))
             {
                 reply.Text += update.Text;
             }

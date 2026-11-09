@@ -55,6 +55,14 @@
           "Markdig": "1.4.1"
         }
       },
+      "Anthropic": {
+        "type": "Transitive",
+        "resolved": "13.4.0",
+        "contentHash": "EuYkx2rsxq49XqIkSM1oNhy9EBKI8QVJfZlNDsNZUCWELh2VVPC5E4BL1URPQxK0kFL2AEkVIa4ypdYVrXQLNQ==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.5.1"
+        }
+      },
       "Avalonia.Angle.Windows.Natives": {
         "type": "Transitive",
         "resolved": "2.1.27548.20260419",
@@ -278,6 +286,7 @@
       "cfcagent.app.core": {
         "type": "Project",
         "dependencies": {
+          "Anthropic": "[13.4.0, )",
           "CFCAgent.Backend": "[1.0.0, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )"
         }
