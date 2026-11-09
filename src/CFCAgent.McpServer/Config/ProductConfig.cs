@@ -82,4 +82,9 @@ public sealed class WriteFieldDefinition
     public string Parameter { get; set; } = "";
     public ToolParameterType Type { get; set; } = ToolParameterType.String;
     public string? Description { get; set; }
+
+    // Optional short note shown next to the column name in previews and approval prompts, for a
+    // value whose unit depends on the installation's settings (for example "cost per weight
+    // unit"). It is a fixed label, not a looked-up unit.
+    public string? Unit { get; set; }
 }

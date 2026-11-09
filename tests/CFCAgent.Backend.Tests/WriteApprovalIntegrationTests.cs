@@ -29,6 +29,19 @@ public class WriteApprovalIntegrationTests
     }
 
     [FactIfDatabase]
+    public async Task Preview_OfACost_NamesTheKindOfUnit()
+    {
+        // The label is fixed text from schema-map.yaml, not a looked-up unit. A no-op value is used and
+        // the call never confirms, so nothing can be written.
+        await using McpToolHost host = await ConnectAsync(null);
+        string cost = await CurrentCostAsync(host);
+
+        string preview = await CallAsync(host, "update_ingredient", new Dictionary<string, object?> { ["code"] = IngredientCode, ["owncost"] = double.Parse(cost) });
+
+        Assert.Contains("owncost (cost per weight unit):", preview);
+    }
+
+    [FactIfDatabase]
     public async Task ConfirmTrue_UserDeclines_NothingIsApplied()
     {
         int asked = 0;

@@ -133,7 +133,8 @@ internal sealed class SchemaMapWriteFunction : AIFunction
         foreach ((WriteFieldDefinition field, object newValue) in changes)
         {
             object? oldValue = currentValues.TryGetValue(field.Column, out object? v) ? v : null;
-            summary.AppendLine($"  {field.Column}: {FormatValue(oldValue, field.Type)} -> {FormatValue(newValue, field.Type)}");
+            string unitNote = field.Unit is { Length: > 0 } unit ? $" ({unit})" : "";
+            summary.AppendLine($"  {field.Column}{unitNote}: {FormatValue(oldValue, field.Type)} -> {FormatValue(newValue, field.Type)}");
         }
 
         if (!confirm)

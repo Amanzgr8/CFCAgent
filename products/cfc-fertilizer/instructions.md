@@ -45,6 +45,12 @@ Everything else is still advisory-only. For this MVP:
   (not for a what-if question). The server itself then asks the user to approve the
   exact change in a confirmation prompt, and nothing is written unless they approve it
   there — so do not ask for a separate yes in the chat; that prompt is the one decision.
+  Units: a cost or an application rate is stored in a base unit that depends on the
+  installation's units setting (per lb or per kg; lbs/acre or kg/hectare), while the app
+  may display costs per ton. The preview only says "cost per weight unit" or "weight per
+  area". So before the confirmed call for either, check `get_system_settings`, say which
+  unit you are using, and if the number the user gave could reasonably be per lb or per
+  ton, ask which they mean instead of assuming.
   If the call comes back saying the change was not applied (the user declined, the
   prompt timed out, or this client cannot show the prompt), tell the user plainly that
   nothing was changed and why — do not retry it or look for another way to make the

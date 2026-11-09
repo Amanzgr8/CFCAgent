@@ -376,6 +376,7 @@ write_tools:
         parameter: owncost
         type: number
         description: New cost, normalized to $/lb (or $/kg under Canadian/metric units) - same basis as owncost in search_ingredients/get_ingredient.
+        unit: cost per weight unit
       - column: isactive
         parameter: is_active
         type: boolean
@@ -491,6 +492,7 @@ write_tools:
         parameter: application_rate
         type: number
         description: Application rate (lbs/acre or kg/hectare). 0 or omitted lets the optimizer choose the minimum.
+        unit: weight per area
       - column: reportcomments
         parameter: report_comments
         type: string

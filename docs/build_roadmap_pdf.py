@@ -148,6 +148,14 @@ FUTURE = [
     ("Some rules are instructions, not code", [
         "Total Nitrogen (1), Phosphate (6), and Potassium (7) must stay active, but only instructions.md says so: update_nutrient itself would apply the change. Enforce it in the tool.",
     ], []),
+    ("Previews name the kind of unit, not the actual unit", [
+        "A cost or application rate is stored in a base unit that depends on the installation's units setting (per lb or per kg; lbs/acre or kg/hectare), while the app may show costs per ton. Today the preview and approval prompt only say \"cost per weight unit\" or \"weight per area\", and the instructions tell the model to check get_system_settings and state the unit before a confirmed write. Found in the first live Claude test: the model silently assumed per lb for \"change the cost to 0.40\" in an installation that displays per ton.",
+    ], [
+        "<b>Compute the label from the settings.</b> Fields declare a kind of unit (for example cost_per_weight, application_rate) and the schema map holds the rules that turn the settings row (ismetric, iscanadian, ingredientcostunit) into a label, so a preview reads \"$0.33/lb -> $0.40/lb\" and switches to $/kg by itself when the installation switches units. Keep the product-specific rules in the YAML, not in C#.",
+        "<b>Show the display unit too</b> where it differs from the stored one, for example \"$0.40/lb ($800/ton)\".",
+        "<b>Confirm the exact mapping first.</b> The schema map's own wording is loose about Canadian (cost per kg but rate in lbs/acre?). Check it against the CFC source before coding the rules.",
+        "<b>Fail honestly:</b> if the settings cannot be read, show \"(unit unknown)\" and have the model ask, never guess. The same labels would also fix unit guessing in the read tools.",
+    ]),
     ("The server only works with PostgreSQL (SQL Server support is planned for Phase 6)", [
         "The MCP layer, the preview-and-approve flow, the instructions, the backend and the CLI are engine-neutral, but the data access is not. Program.cs creates an NpgsqlDataSource, and the read engine, the write engine and the binder tool all open Npgsql connections directly. The SQL in schema-map.yaml uses PostgreSQL syntax: ILIKE for case-insensitive search, LIMIT @limit, and || to join strings. A Microsoft SQL Server product would need different syntax for each.",
     ], [
