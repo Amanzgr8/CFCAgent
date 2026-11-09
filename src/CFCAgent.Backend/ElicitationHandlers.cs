@@ -8,8 +8,7 @@ namespace CFCAgent.Backend;
 // said yes; otherwise it declines, or cancels if the callback was cancelled.
 public static class ElicitationHandlers
 {
-    public static Func<ElicitRequestParams?, CancellationToken, ValueTask<ElicitResult>> Create(
-        Func<string, CancellationToken, Task<bool>> confirmAsync)
+    public static Func<ElicitRequestParams?, CancellationToken, ValueTask<ElicitResult>> Create(Func<string, CancellationToken, Task<bool>> confirmAsync)
     {
         return async (ElicitRequestParams? request, CancellationToken cancellationToken) =>
         {
