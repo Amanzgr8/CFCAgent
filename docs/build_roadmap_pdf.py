@@ -86,7 +86,8 @@ PHASES = [
         "<b>Not yet done:</b> the live Claude conversation through the backend (needs an API key in the user's own environment), and a first real --setup run by hand.",
         "<b>Consequence:</b> the Desktop app's Code tab declines the prompt, so write tools called from there are now blocked. Writes work through our own client and Claude Code in a terminal.",
     ]),
-    ("Phase 4 \u2014 Desktop frontend", "Not started", [
+    ("Phase 4 \u2014 Desktop frontend", "Partly done", [
+        "<b>Spike progress (Windows ARM64 only):</b> done so far are an Avalonia window over UI-free view-models, a chat shell that streams the stub model's reply, and the Markdown bake-off. <b>Markdown renderer chosen: MarkView.Avalonia</b> (MIT; streaming session built for chat; best default looks; fewest dependencies). LiveMarkdown.Avalonia is the fallback; Markdown.Avalonia was dropped because it redraws the whole text on every piece and slows down badly on long replies; LM.Markdown.Avalonia only supports Avalonia 11. Still to do in the spike: the real backend through the tenant settings, the approval dialog, the settings screen, tool-call display, and measurements.",
         "<b>Constraints decided 2026-11-08:</b> an installed native app, not a browser; desktop only (Windows, macOS, Linux), no mobile; the app hosts the backend itself and launches the MCP server as a child process, so no network server, remote sign-in or exposed port is needed. <b>No paid tools or components</b> anywhere in the UI stack (free, open-source libraries only). UI work uses the stub model; the live Claude path is tested separately.",
         "<b>Framework: Avalonia is the front-runner,</b> pending a spike. It is native on all three desktops, MIT-licensed at its core, lists Windows 11 ARM64 as Tier 1, and keeps today's local-backend design. <b>In reserve:</b> Uno Platform (native on all three; WinUI-style XAML; Apache 2.0 core), and Blazor Hybrid in a native window through a community host such as Photino or InfiniFrame (best Markdown rendering, but a community-maintained host over each OS's own web view). <b>Ruled out:</b> .NET MAUI (no Linux; the macOS app is sandboxed, which complicates launching the server; versions are supported only 6 months after the next ships), WPF and WinForms (Windows only), Blazor Web (a browser, not an app), Tauri and Electron (add a JavaScript or Rust stack).",
         "<b>Spike before committing:</b> one window with a streamed reply containing a Markdown table, the approval dialog answering the backend's ConfirmAsync, and the real server launched as a child process. Run it on Windows ARM64 first, then on a Mac and a Linux machine. If rendering the reply proves painful in Avalonia, revisit Blazor Hybrid or Uno.",
@@ -116,7 +117,7 @@ OPEN = [
     "Whether to split database access into a read-only user for the read tools and a separate write user for the write tools. Today everything runs as one read/write user, so the database no longer stops a read tool from writing; only the code does.",
     "The exact end-user authentication scheme inside a single install (Phase 7).",
     "Installer/packaging strategy: bundled with CFC Fertilizer vs. a standalone installer (Phase 7).",
-    "Final UI framework (Avalonia, Uno Platform, or Blazor Hybrid in a native window): decide after the Phase 4 spike. Also the Markdown renderer for chat replies: paid controls are off the table, so it will be one of the free Markdig-based libraries (LiveMarkdown.Avalonia, LM.Markdown.Avalonia, MarkView.Avalonia), chosen in the spike's bake-off on quality, streaming behaviour and maintenance.",
+    "Final UI framework (Avalonia, Uno Platform, or Blazor Hybrid in a native window): decide after the Phase 4 spike (Avalonia is in the lead; the Markdown renderer question is settled: MarkView.Avalonia).",
 ]
 
 RISKS = [
@@ -124,6 +125,8 @@ RISKS = [
     "<b>Data caveats found during the POC.</b> formulationstatus = 1 doesn't reliably mean \"not formulated\" for migrated data, and duplicate customer records exist (e.g. two separate \"KT Farms\" records). Both are encoded in schema-map.yaml's ground rules and tool descriptions.",
     "<b>Quality doesn't transfer automatically</b> across model swaps or across products \u2014 re-run the test-question set after any change to the model, the instructions, or a product config.",
     "<b>UI framework risk.</b> Avalonia 12 is young and moving from 11 to 12 broke things; the company is small (about 20 people). Its macOS build must sign and notarize the bundled server, which has not been tried. None of the options has been run on macOS or Linux yet; so far everything has run only on Windows ARM64.",
+    "<b>Avalonia tooling cost.</b> The framework is free and MIT. Its visual designer, Hot Reload and DevTools for Visual Studio are in the paid Plus tier (about 299 euros a year per developer); since April 2026 the free Community tier is for non-commercial use only, so it does not cover this product. The spike works without them: screens are checked with headless screenshot tests. Revisit if building screens without the designer slows the work down.",
+    "<b>MarkView.Avalonia is young and has one maintainer.</b> Pin the version (12.4.*). The fallback, LiveMarkdown.Avalonia, was benchmarked and works. Its MIT notice (and Markdig's) must go in the third-party notices file before shipping.",
 ]
 
 DEV_NOTES = [

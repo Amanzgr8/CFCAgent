@@ -1,6 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:CFCAgent.App.Core"
+        xmlns:local="using:CFCAgent.App"
+        xmlns:mv="using:MarkView.Avalonia"
         x:Class="CFCAgent.App.MainWindow"
         x:DataType="vm:ChatViewModel"
         Title="CFC Agent (spike)"
@@ -42,7 +44,9 @@
                     Classes.user="{Binding IsUser}"
                     Classes.notice="{Binding IsNotice}">
               <StackPanel Spacing="4">
-                <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                <!-- The user's words and app notices stay plain text; the assistant's reply is Markdown. -->
+                <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" IsVisible="{Binding !IsAssistant}" />
+                <mv:MarkdownViewer local:MarkdownMessage.Source="{Binding}" IsVisible="{Binding IsAssistant}" />
                 <TextBlock Text="..." Opacity="0.6" IsVisible="{Binding IsStreaming}" />
               </StackPanel>
             </Border>

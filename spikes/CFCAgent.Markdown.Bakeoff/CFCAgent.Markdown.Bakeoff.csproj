@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Spike step 3: renders the same assistant reply with each free Markdown library for Avalonia 12,
+       headlessly, so they can be compared on looks (screenshots), speed and streaming behaviour.
+       Throwaway: the winner moves into the real app, and this project can then be deleted.
+       Avalonia.Headless.XUnit needs xunit v3, so (like CFCAgent.App.Tests) this project is an executable. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageReference Include="Avalonia" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Skia" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.5" />
+
+    <!-- The candidates (all free, no registration):
+         MarkView.Avalonia 12.4.0     MIT        Avalonia 12, has a streaming session
+         LiveMarkdown.Avalonia 2.5.1  Apache-2.0 Avalonia 12, built for streaming model output
+         Markdown.Avalonia 12.0.2     MIT        Avalonia 12, the long-standing one; no streaming API
+         Left out: LM.Markdown.Avalonia 1.0.1 (MIT) is built for Avalonia 11.3, not 12. -->
+    <PackageReference Include="MarkView.Avalonia" Version="12.4.0" />
+    <PackageReference Include="LiveMarkdown.Avalonia" Version="2.5.1" />
+    <PackageReference Include="Markdown.Avalonia" Version="12.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <None Update="sample-reply.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -16,6 +16,8 @@
     <PackageReference Include="Avalonia.Desktop" Version="12.1.5" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.5" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.5" />
+    <!-- Markdown for assistant replies. MIT. Picked in spike step 3 (see the bake-off project). -->
+    <PackageReference Include="MarkView.Avalonia" Version="12.4.0" />
   </ItemGroup>
 
   <ItemGroup>

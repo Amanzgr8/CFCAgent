@@ -1,0 +1,17 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="CFCAgent.Markdown.Bakeoff.BakeoffApp"
+             RequestedThemeVariant="Light">
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://MarkView.Avalonia/Themes/MarkdownTheme.axaml" />
+    <StyleInclude Source="avares://LiveMarkdown.Avalonia/Styles.axaml" />
+  </Application.Styles>
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://LiveMarkdown.Avalonia/Defaults.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+</Application>

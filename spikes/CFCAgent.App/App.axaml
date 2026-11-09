@@ -4,5 +4,8 @@
              RequestedThemeVariant="Default">
   <Application.Styles>
     <FluentTheme />
+    <!-- MarkView: the viewer template, then the compact chat look (small headings, code in cards). -->
+    <StyleInclude Source="avares://MarkView.Avalonia/Themes/MarkdownTheme.axaml" />
+    <StyleInclude Source="avares://MarkView.Avalonia/Themes/ChatTheme.axaml" />
   </Application.Styles>
 </Application>
