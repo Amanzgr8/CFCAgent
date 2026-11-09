@@ -1,0 +1,11 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="CFCAgent.App.MainWindow"
+        Title="CFC Agent (spike)"
+        Width="720" Height="420">
+  <StackPanel Margin="24" Spacing="12">
+    <TextBlock Text="CFC Agent" FontSize="28" FontWeight="SemiBold" />
+    <TextBlock Text="Avalonia spike - step 0: an empty window that reports where it is running." />
+    <TextBlock x:Name="RuntimeText" TextWrapping="Wrap" />
+  </StackPanel>
+</Window>

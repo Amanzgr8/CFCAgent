@@ -87,7 +87,7 @@ PHASES = [
         "<b>Consequence:</b> the Desktop app's Code tab declines the prompt, so write tools called from there are now blocked. Writes work through our own client and Claude Code in a terminal.",
     ]),
     ("Phase 4 \u2014 Desktop frontend", "Not started", [
-        "<b>Constraints decided 2026-11-08:</b> an installed native app, not a browser; desktop only (Windows, macOS, Linux), no mobile; the app hosts the backend itself and launches the MCP server as a child process, so no network server, remote sign-in or exposed port is needed.",
+        "<b>Constraints decided 2026-11-08:</b> an installed native app, not a browser; desktop only (Windows, macOS, Linux), no mobile; the app hosts the backend itself and launches the MCP server as a child process, so no network server, remote sign-in or exposed port is needed. <b>No paid tools or components</b> anywhere in the UI stack (free, open-source libraries only). UI work uses the stub model; the live Claude path is tested separately.",
         "<b>Framework: Avalonia is the front-runner,</b> pending a spike. It is native on all three desktops, MIT-licensed at its core, lists Windows 11 ARM64 as Tier 1, and keeps today's local-backend design. <b>In reserve:</b> Uno Platform (native on all three; WinUI-style XAML; Apache 2.0 core), and Blazor Hybrid in a native window through a community host such as Photino or InfiniFrame (best Markdown rendering, but a community-maintained host over each OS's own web view). <b>Ruled out:</b> .NET MAUI (no Linux; the macOS app is sandboxed, which complicates launching the server; versions are supported only 6 months after the next ships), WPF and WinForms (Windows only), Blazor Web (a browser, not an app), Tauri and Electron (add a JavaScript or Rust stack).",
         "<b>Spike before committing:</b> one window with a streamed reply containing a Markdown table, the approval dialog answering the backend's ConfirmAsync, and the real server launched as a child process. Run it on Windows ARM64 first, then on a Mac and a Linux machine. If rendering the reply proves painful in Avalonia, revisit Blazor Hybrid or Uno.",
         "Chat window, message history, tool-call/result display, confirmation dialogs for write actions, and a settings screen that calls TenantSettings.",
@@ -116,7 +116,7 @@ OPEN = [
     "Whether to split database access into a read-only user for the read tools and a separate write user for the write tools. Today everything runs as one read/write user, so the database no longer stops a read tool from writing; only the code does.",
     "The exact end-user authentication scheme inside a single install (Phase 7).",
     "Installer/packaging strategy: bundled with CFC Fertilizer vs. a standalone installer (Phase 7).",
-    "Final UI framework (Avalonia, Uno Platform, or Blazor Hybrid in a native window): decide after the Phase 4 spike. Also the Markdown renderer for chat replies: Avalonia's official control is part of a paid tier, and the free Markdig-based controls have not been checked for quality or maintenance.",
+    "Final UI framework (Avalonia, Uno Platform, or Blazor Hybrid in a native window): decide after the Phase 4 spike. Also the Markdown renderer for chat replies: paid controls are off the table, so it will be one of the free Markdig-based libraries (LiveMarkdown.Avalonia, LM.Markdown.Avalonia, MarkView.Avalonia), chosen in the spike's bake-off on quality, streaming behaviour and maintenance.",
 ]
 
 RISKS = [

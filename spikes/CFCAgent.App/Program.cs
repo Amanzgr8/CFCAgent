@@ -1,0 +1,21 @@
+using Avalonia;
+
+namespace CFCAgent.App;
+
+internal static class Program
+{
+    [STAThread]
+    public static void Main(string[] args)
+    {
+        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+    }
+
+    // Also used by the design-time tooling and the headless tests.
+    public static AppBuilder BuildAvaloniaApp()
+    {
+        return AppBuilder.Configure<App>()
+            .UsePlatformDetect()
+            .WithInterFont()
+            .LogToTrace();
+    }
+}
