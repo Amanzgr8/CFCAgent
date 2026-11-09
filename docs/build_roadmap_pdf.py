@@ -87,8 +87,11 @@ PHASES = [
         "<b>Consequence:</b> the Desktop app's Code tab declines the prompt, so write tools called from there are now blocked. Writes work through our own client and Claude Code in a terminal.",
     ]),
     ("Phase 4 \u2014 Desktop frontend", "Not started", [
-        "Chat window, message history, tool-call/result display, and confirmation dialogs for write actions.",
-        "Wired to the local backend over local IPC/HTTP, running alongside the app on the customer's machine.",
+        "<b>Constraints decided 2026-11-08:</b> an installed native app, not a browser; desktop only (Windows, macOS, Linux), no mobile; the app hosts the backend itself and launches the MCP server as a child process, so no network server, remote sign-in or exposed port is needed.",
+        "<b>Framework: Avalonia is the front-runner,</b> pending a spike. It is native on all three desktops, MIT-licensed at its core, lists Windows 11 ARM64 as Tier 1, and keeps today's local-backend design. <b>In reserve:</b> Uno Platform (native on all three; WinUI-style XAML; Apache 2.0 core), and Blazor Hybrid in a native window through a community host such as Photino or InfiniFrame (best Markdown rendering, but a community-maintained host over each OS's own web view). <b>Ruled out:</b> .NET MAUI (no Linux; the macOS app is sandboxed, which complicates launching the server; versions are supported only 6 months after the next ships), WPF and WinForms (Windows only), Blazor Web (a browser, not an app), Tauri and Electron (add a JavaScript or Rust stack).",
+        "<b>Spike before committing:</b> one window with a streamed reply containing a Markdown table, the approval dialog answering the backend's ConfirmAsync, and the real server launched as a child process. Run it on Windows ARM64 first, then on a Mac and a Linux machine. If rendering the reply proves painful in Avalonia, revisit Blazor Hybrid or Uno.",
+        "Chat window, message history, tool-call/result display, confirmation dialogs for write actions, and a settings screen that calls TenantSettings.",
+        "<b>Portability work this needs:</b> a credential-store factory by OS (macOS Keychain, Linux Secret Service) behind ICredentialStore; self-contained per-platform publishing (the backend currently launches \"dotnet\"); a CI job running the tests on Ubuntu and macOS; on macOS, signing and notarizing the bundled server (nested binaries first, hardened runtime); and installer plus auto-update (Velopack supports Windows, macOS and Linux and has Avalonia examples).",
     ]),
     ("Phase 5 \u2014 Internal pilot", "Not started", [
         "Deploy to a handful of internal users (formulators, plant staff, sales) against a non-production database.",
@@ -113,12 +116,14 @@ OPEN = [
     "Whether to split database access into a read-only user for the read tools and a separate write user for the write tools. Today everything runs as one read/write user, so the database no longer stops a read tool from writing; only the code does.",
     "The exact end-user authentication scheme inside a single install (Phase 7).",
     "Installer/packaging strategy: bundled with CFC Fertilizer vs. a standalone installer (Phase 7).",
+    "Final UI framework (Avalonia, Uno Platform, or Blazor Hybrid in a native window): decide after the Phase 4 spike. Also the Markdown renderer for chat replies: Avalonia's official control is part of a paid tier, and the free Markdig-based controls have not been checked for quality or maintenance.",
 ]
 
 RISKS = [
     "<b>Solver integration.</b> Lower risk than first thought: the accepted fallback (tell the user to click Formulate) works today. Calling the solver directly would only add live re-formulated answers.",
     "<b>Data caveats found during the POC.</b> formulationstatus = 1 doesn't reliably mean \"not formulated\" for migrated data, and duplicate customer records exist (e.g. two separate \"KT Farms\" records). Both are encoded in schema-map.yaml's ground rules and tool descriptions.",
     "<b>Quality doesn't transfer automatically</b> across model swaps or across products \u2014 re-run the test-question set after any change to the model, the instructions, or a product config.",
+    "<b>UI framework risk.</b> Avalonia 12 is young and moving from 11 to 12 broke things; the company is small (about 20 people). Its macOS build must sign and notarize the bundled server, which has not been tried. None of the options has been run on macOS or Linux yet; so far everything has run only on Windows ARM64.",
 ]
 
 DEV_NOTES = [
@@ -163,6 +168,12 @@ FUTURE = [
         "<b>Let each product's schema map name its engine</b>, and add a small dialect layer for row limits, case-insensitive matching and string concatenation. Boolean handling (smallint, tested with <> 0) and identifier quoting differ by engine too.",
         "<b>Write the SQL per product and engine.</b> A SQL Server product would ship its own schema map. This is likely the largest part of the work.",
         "<b>Do it with a real second product in Phase 6</b>, not ahead of time. An abstraction designed without a real SQL Server database to test against tends to be wrong. Until then, keep SQL in the schema map and out of C#. The one exception is the binder tool's hand-written SQL, which is plain and should port easily but needs checking.",
+    ]),
+    ("Mobile and remote access are out of scope (decision 2026-11-08)", [
+        "The design assumes the backend runs on the same machine as the app and launches the MCP server as a child process. iOS does not allow an app to spawn child processes, and a phone should not hold database credentials, so phones and tablets would need a hosted backend service with user sign-in, TLS and per-user approval records.",
+    ], [
+        "<b>What would make it possible later:</b> CFCAgent.Backend is a plain class library and approvals already flow through one callback (ConfirmAsync), so an ASP.NET Core host could be added around it without changing the server or the tools. The credential store would then live on that host.",
+        "<b>What it would cost:</b> authentication and roles move from Phase 7 to the front of the plan, plus network security and a SignalR-style channel for streaming replies and approvals.",
     ]),
 ]
 
