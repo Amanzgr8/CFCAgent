@@ -22,6 +22,7 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleChangesCommand))]
     private bool _isBusy;
 
     // Sending is only possible once a backend is connected.
@@ -32,7 +33,17 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RetryConnectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleChangesCommand))]
     private bool _isConnecting;
+
+    // Whether this session may change data. Always false at startup: every launch is read-only until the
+    // user turns changes on, and even then each change needs its own approval.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ModeBadge))]
+    [NotifyPropertyChangedFor(nameof(ToggleChangesLabel))]
+    private bool _allowChanges;
+
+    private Func<bool, IChatConnector>? _connectorForMode;
 
     // One line about the connection, shown in the window: what it is connected to, or why it is not.
     [ObservableProperty]
@@ -92,6 +103,50 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
         {
             IsConnecting = false;
         }
+    }
+
+    public string ModeBadge => AllowChanges ? "CHANGES ALLOWED" : "READ-ONLY";
+
+    public string ToggleChangesLabel => AllowChanges ? "Back to read-only" : "Allow changes";
+
+    // Whether the window should offer the read-only / changes switch at all (a demo has nothing to switch).
+    public bool CanSwitchMode => _connectorForMode is not null;
+
+    // Gives the view-model what it needs to switch between a read-only session and one that allows changes:
+    // a way to make a connector for either mode. Without this the switch is not offered.
+    public void EnableModeSwitch(Func<bool, IChatConnector> connectorForMode)
+    {
+        _connectorForMode = connectorForMode;
+        OnPropertyChanged(nameof(CanSwitchMode));
+        ToggleChangesCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanToggleChanges()
+    {
+        return _connectorForMode is not null && !IsBusy && !IsConnecting;
+    }
+
+    // Switches the session between read-only and changes-allowed. The tool list and the confirmation
+    // handshake are fixed when a session connects, so this ends the current server process and starts a
+    // fresh connection and a fresh conversation (the model would otherwise remember the old mode's tools).
+    [RelayCommand(CanExecute = nameof(CanToggleChanges))]
+    private async Task ToggleChangesAsync()
+    {
+        bool target = !AllowChanges;
+        IChatConnector connector = _connectorForMode!(target);
+
+        await DisposeAsync();
+        _session = null;
+        IsConnected = false;
+        Messages.Clear();
+        AllowChanges = target;
+        Messages.Add(new ChatMessageViewModel(
+            ChatAuthor.Notice,
+            target
+                ? "Changes are now allowed. The assistant can propose a change, and nothing is applied unless you approve it in the dialog. This started a new conversation."
+                : "Back to read-only. The assistant can no longer change anything. This started a new conversation."));
+
+        await ConnectAsync(connector);
     }
 
     private bool CanRetryConnection()

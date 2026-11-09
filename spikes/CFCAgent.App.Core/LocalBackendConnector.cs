@@ -28,6 +28,11 @@ public sealed class LocalBackendOptions
 
     // Use the echo-only stub even when ANTHROPIC_API_KEY is set (tests).
     public bool ForceStubModel { get; init; }
+
+    // How the user is asked to approve a change (the approval dialog). Only used when ReadOnly is false: a
+    // read-only session never registers it, so the server is never told this client can be asked, and it
+    // refuses every change.
+    public Func<string, CancellationToken, Task<bool>>? ConfirmAsync { get; init; }
 }
 
 // Connects the app to a local backend the way the console host does: reads the tenant setup (the connection
@@ -70,9 +75,10 @@ public sealed class LocalBackendConnector : IChatConnector
                     ProductConfigPath = resolved.ProductConfigPath,
                     DatabaseConnectionString = resolved.DatabaseConnectionString,
 
-                    // No approval dialog yet. Without a confirmation callback the server is never told the client can
-                    // ask the user, so it refuses every change: even a write tool that slipped through would fail closed.
-                    ConfirmAsync = null,
+                    // Only a session that allows changes registers the approval callback. Without one the server is
+                    // never told the client can ask the user, so it refuses every change: even a write tool that
+                    // slipped into a read-only session would fail closed.
+                    ConfirmAsync = _options.ReadOnly ? null : _options.ConfirmAsync,
                     OnServerLog = log.Add,
                 },
                 cancellationToken);
@@ -99,9 +105,20 @@ public sealed class LocalBackendConnector : IChatConnector
             (IChatClient client, string modelNote) = CreateModelClient();
             ChatSession session = new ChatSession(client, tools, systemPrompt);
 
-            string toolNote = _options.ReadOnly
-                ? $"{tools.Count} tools, read-only ({host.Tools.Count - tools.Count} write tools hidden)"
-                : $"{tools.Count} tools";
+            string toolNote;
+            if (_options.ReadOnly)
+            {
+                toolNote = $"{tools.Count} tools, read-only ({host.Tools.Count - tools.Count} write tools hidden)";
+            }
+            else if (_options.ConfirmAsync is not null)
+            {
+                toolNote = $"{tools.Count} tools, changes allowed (each one needs your approval)";
+            }
+            else
+            {
+                toolNote = $"{tools.Count} tools, but no approval prompt is available, so every change will be refused";
+            }
+
             string description = $"{resolved.Source} · {toolNote} · {modelNote}";
 
             return new ChatConnection(session, description, tools, log, host.DisposeAsync);
