@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="../src/CFCAgent.Backend/CFCAgent.Backend.csproj" />
+  <Project Path="CFCAgent.App.Core.Tests/CFCAgent.App.Core.Tests.csproj" />
+  <Project Path="CFCAgent.App.Core/CFCAgent.App.Core.csproj" />
+  <Project Path="CFCAgent.App.Tests/CFCAgent.App.Tests.csproj" />
+  <Project Path="CFCAgent.App/CFCAgent.App.csproj" />
+</Solution>

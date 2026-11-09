@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using CFCAgent.App.Core;
 
 namespace CFCAgent.App;
 
@@ -15,7 +16,11 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow();
+            // Stub model for now: it streams an echo word by word, with a short delay so the streaming is visible.
+            desktop.MainWindow = new MainWindow
+            {
+                DataContext = ChatViewModel.CreateDemo(TimeSpan.FromMilliseconds(60)),
+            };
         }
 
         base.OnFrameworkInitializationCompleted();
