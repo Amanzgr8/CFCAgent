@@ -9,7 +9,7 @@ public sealed class LocalBackendOptions
     public const string DefaultModel = "claude-haiku-5-5";
 
     // Read-only is the default: the model is not even offered the tools that change data. Allowing writes
-    // needs the approval dialog (spike step 5), so nothing in the app turns this off yet.
+    // is switched off only by the Allow changes switch, and every change then needs an approval card.
     public bool ReadOnly { get; init; } = true;
 
     public string Model { get; init; } = DefaultModel;
@@ -29,7 +29,7 @@ public sealed class LocalBackendOptions
     // Use the echo-only stub even when ANTHROPIC_API_KEY is set (tests).
     public bool ForceStubModel { get; init; }
 
-    // How the user is asked to approve a change (the approval dialog). Only used when ReadOnly is false: a
+    // How the user is asked to approve a change (the approval card in the chat). Only used when ReadOnly is false: a
     // read-only session never registers it, so the server is never told this client can be asked, and it
     // refuses every change.
     public Func<string, CancellationToken, Task<bool>>? ConfirmAsync { get; init; }

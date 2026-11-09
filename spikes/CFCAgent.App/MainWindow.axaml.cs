@@ -19,6 +19,9 @@ public partial class MainWindow : Window
         // accepts multi-line text), so a normal KeyDown handler would never see the key. Tunnelling reaches
         // this handler first, which can send the message and mark the key handled.
         InputBox.AddHandler(KeyDownEvent, OnInputKeyDown, RoutingStrategies.Tunnel);
+
+        // Esc cancels an open approval question wherever the keyboard focus is.
+        AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
         DataContextChanged += OnDataContextChanged;
     }
 
@@ -60,6 +63,15 @@ public partial class MainWindow : Window
     private void ScrollToEnd()
     {
         Dispatcher.UIThread.Post(() => Scroller.ScrollToEnd(), DispatcherPriority.Background);
+    }
+
+    private void OnWindowKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && DataContext is ChatViewModel { PendingApproval: ApprovalRequestViewModel pending })
+        {
+            e.Handled = true;
+            pending.CancelCommand.Execute(null);
+        }
     }
 
     private void OnInputKeyDown(object? sender, KeyEventArgs e)

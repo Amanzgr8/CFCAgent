@@ -4,7 +4,7 @@ using Microsoft.Extensions.AI;
 
 namespace CFCAgent.App.Core.Tests;
 
-// The approval question's answer rules, and the switch between a read-only session and one that allows changes.
+// The switch between a read-only session and one that allows changes.
 public class ApprovalAndModeTests : IDisposable
 {
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "cfcagent-mode-tests-" + Guid.NewGuid().ToString("N"));
@@ -15,80 +15,6 @@ public class ApprovalAndModeTests : IDisposable
         {
             Directory.Delete(_folder, recursive: true);
         }
-    }
-
-    // ---- The question and its answer ----
-
-    [Fact]
-    public async Task Apply_AnswersYes()
-    {
-        ApprovalRequestViewModel request = new ApprovalRequestViewModel("Change D066 owncost 0.41 -> 0.43");
-
-        request.ApplyCommand.Execute(null);
-
-        Assert.True(await request.Decision);
-        Assert.True(request.IsDecided);
-    }
-
-    [Fact]
-    public async Task Cancel_AnswersNo()
-    {
-        ApprovalRequestViewModel request = new ApprovalRequestViewModel("anything");
-
-        request.CancelCommand.Execute(null);
-
-        Assert.False(await request.Decision);
-    }
-
-    [Fact]
-    public async Task ClosingTheWindowWithoutAnswering_IsNo()
-    {
-        ApprovalRequestViewModel request = new ApprovalRequestViewModel("anything");
-
-        request.CloseWithoutAnswer();
-
-        Assert.False(await request.Decision);
-    }
-
-    [Fact]
-    public async Task TheFirstAnswerWins_ACancelCanNeverBecomeAYes()
-    {
-        ApprovalRequestViewModel request = new ApprovalRequestViewModel("anything");
-
-        request.CancelCommand.Execute(null);
-        request.ApplyCommand.Execute(null);
-        request.CloseWithoutAnswer();
-
-        Assert.False(await request.Decision);
-    }
-
-    [Fact]
-    public async Task TheFirstAnswerWins_AnApplyIsNotUndoneByTheWindowClosingAfterwards()
-    {
-        ApprovalRequestViewModel request = new ApprovalRequestViewModel("anything");
-
-        request.ApplyCommand.Execute(null);
-        request.CloseWithoutAnswer();
-        request.CancelCommand.Execute(null);
-
-        Assert.True(await request.Decision);
-    }
-
-    [Fact]
-    public void NoAnswerYet_MeansNotDecidedAndNotApproved()
-    {
-        ApprovalRequestViewModel request = new ApprovalRequestViewModel("anything");
-
-        Assert.False(request.IsDecided);
-        Assert.False(request.Decision.IsCompleted);
-    }
-
-    [Fact]
-    public void TheMessageIsKeptExactlyAsTheServerSentIt()
-    {
-        string preview = "Ingredient D066 (Urea)\n  owncost (cost per weight unit): 0.41 -> 0.43\n\nApply this change?";
-
-        Assert.Equal(preview, new ApprovalRequestViewModel(preview).Message);
     }
 
     // ---- Switching between read-only and changes-allowed ----

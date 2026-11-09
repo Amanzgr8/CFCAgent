@@ -24,8 +24,9 @@ public partial class App : Application
 
             if (!demo)
             {
-                // Read-only unless the user turns changes on; then every change goes through the approval dialog.
-                AvaloniaApprovalPresenter approvals = new AvaloniaApprovalPresenter(() => window);
+                // Read-only unless the user turns changes on; then every change goes through an approval card in
+                // the chat. The card is added on the UI thread, which is the thread this code runs on.
+                ChatApprovalPresenter approvals = new ChatApprovalPresenter(viewModel, SynchronizationContext.Current);
                 Func<bool, IChatConnector> connectorForMode = allowChanges => new LocalBackendConnector(new LocalBackendOptions
                 {
                     ReadOnly = !allowChanges,

@@ -45,6 +45,14 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
 
     private Func<bool, IChatConnector>? _connectorForMode;
 
+    // The approval card waiting for an answer, if any. The window uses it to let Esc cancel the question.
+    [ObservableProperty]
+    private ApprovalRequestViewModel? _pendingApproval;
+
+    // Set when a card has been added: text that arrives after it starts a new reply bubble below the card,
+    // so the conversation reads in the order things happened (text, question, answer, more text).
+    private bool _startNewReplyBubble;
+
     // One line about the connection, shown in the window: what it is connected to, or why it is not.
     [ObservableProperty]
     private string _connectionStatus = "Not connected";
@@ -143,7 +151,7 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
         Messages.Add(new ChatMessageViewModel(
             ChatAuthor.Notice,
             target
-                ? "Changes are now allowed. The assistant can propose a change, and nothing is applied unless you approve it in the dialog. This started a new conversation."
+                ? "Changes are now allowed. The assistant can propose a change, and nothing is applied unless you approve it on the approval card. This started a new conversation."
                 : "Back to read-only. The assistant can no longer change anything. This started a new conversation."));
 
         await ConnectAsync(connector);
@@ -160,9 +168,29 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
         return ConnectAsync(_connector!);
     }
 
+    // Puts an "apply this change?" card in the conversation. Called on the UI thread by ChatApprovalPresenter.
+    public void ShowApproval(ApprovalRequestViewModel request)
+    {
+        Messages.Add(new ChatMessageViewModel(request));
+        PendingApproval = request;
+        _startNewReplyBubble = true;
+
+        // Once the question is answered or withdrawn, nothing is pending any more. The card stays as a record.
+        request.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ApprovalRequestViewModel.State) && !request.IsPending && ReferenceEquals(PendingApproval, request))
+            {
+                PendingApproval = null;
+            }
+        };
+    }
+
     // Shuts the backend down (ends the MCP server process). Safe to call more than once.
     public async ValueTask DisposeAsync()
     {
+        // A question that is still open can never be answered once the connection is gone.
+        PendingApproval?.Withdraw();
+
         ChatConnection? connection = _connection;
         _connection = null;
         if (connection is not null)
@@ -188,10 +216,26 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
         reply.IsStreaming = true;
         Messages.Add(reply);
 
+        _startNewReplyBubble = false;
+
         try
         {
             await foreach (ChatResponseUpdate update in _session!.SendStreamingAsync(text, cancellationToken))
             {
+                if (_startNewReplyBubble && update.Text.Length > 0)
+                {
+                    // An approval card was added while this reply was in progress: carry on below it.
+                    reply.IsStreaming = false;
+                    if (reply.Text.Length == 0)
+                    {
+                        Messages.Remove(reply);
+                    }
+
+                    reply = new ChatMessageViewModel(ChatAuthor.Assistant, "") { IsStreaming = true };
+                    Messages.Add(reply);
+                    _startNewReplyBubble = false;
+                }
+
                 reply.Text += update.Text;
             }
         }
@@ -210,7 +254,14 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
         }
         finally
         {
+            // The reply is over, so a question still open can no longer matter: withdraw it (nothing is changed).
+            PendingApproval?.Withdraw();
             reply.IsStreaming = false;
+            if (reply.Text.Length == 0)
+            {
+                Messages.Remove(reply);
+            }
+
             IsBusy = false;
         }
     }

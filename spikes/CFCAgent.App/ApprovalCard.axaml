@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CFCAgent.App.Core"
+             x:Class="CFCAgent.App.ApprovalCard"
+             x:DataType="vm:ApprovalRequestViewModel"
+             HorizontalAlignment="Left" MaxWidth="680">
+
+  <UserControl.Styles>
+    <Style Selector="Border.approval">
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="14,10" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="#F2A93B" />
+      <Setter Property="Background" Value="#22F2A93B" />
+    </Style>
+    <Style Selector="Button.apply">
+      <Setter Property="Background" Value="#2D6CDF" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.apply:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#2459B8" />
+      <Setter Property="TextElement.Foreground" Value="White" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Classes="approval">
+    <Panel>
+      <!-- Waiting for an answer: the server's exact preview and the two buttons. -->
+      <StackPanel x:Name="PendingPanel" Spacing="10" IsVisible="{Binding IsPending}">
+        <TextBlock Text="Approve this change?" FontWeight="SemiBold" FontSize="15" />
+
+        <Border CornerRadius="6" Background="#18808080" Padding="12,10">
+          <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
+            <SelectableTextBlock x:Name="PreviewText" Text="{Binding Message}" TextWrapping="Wrap"
+                                 FontFamily="Cascadia Mono,Consolas,Menlo,monospace" FontSize="13" />
+          </ScrollViewer>
+        </Border>
+
+        <TextBlock Text="Nothing is changed unless you press Apply change. Cancel, Esc and Enter all leave everything as it is."
+                   TextWrapping="Wrap" FontSize="12" Opacity="0.7" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+          <!-- Cancel takes the focus when the card appears, so Enter can only ever cancel. Applying takes a deliberate click. -->
+          <Button x:Name="CancelButton" Content="Cancel" Command="{Binding CancelCommand}" MinWidth="90" />
+          <Button x:Name="ApplyButton" Classes="apply" Content="Apply change" Command="{Binding ApplyCommand}" MinWidth="120" />
+        </StackPanel>
+      </StackPanel>
+
+      <!-- Answered: shrinks to a one-line record that stays in the conversation. -->
+      <StackPanel x:Name="RecordPanel" Spacing="2" IsVisible="{Binding !IsPending}">
+        <TextBlock x:Name="RecordStatus" Text="{Binding StatusText}" FontWeight="SemiBold" />
+        <TextBlock x:Name="RecordSummary" Text="{Binding Summary}" FontSize="12" Opacity="0.75" TextWrapping="Wrap" />
+      </StackPanel>
+    </Panel>
+  </Border>
+</UserControl>

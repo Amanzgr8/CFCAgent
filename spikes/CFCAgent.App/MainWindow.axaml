@@ -53,16 +53,27 @@
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:ChatMessageViewModel">
-            <Border Classes="bubble"
-                    Classes.user="{Binding IsUser}"
-                    Classes.notice="{Binding IsNotice}">
-              <StackPanel Spacing="4">
-                <!-- The user's words and app notices stay plain text; the assistant's reply is Markdown. -->
-                <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" IsVisible="{Binding !IsAssistant}" />
-                <mv:MarkdownViewer local:MarkdownMessage.Source="{Binding}" IsVisible="{Binding IsAssistant}" />
-                <TextBlock Text="..." Opacity="0.6" IsVisible="{Binding IsStreaming}" />
-              </StackPanel>
-            </Border>
+            <Panel>
+              <Border Classes="bubble"
+                      Classes.user="{Binding IsUser}"
+                      Classes.notice="{Binding IsNotice}"
+                      IsVisible="{Binding !IsApproval}">
+                <StackPanel Spacing="4">
+                  <!-- The user's words and app notices stay plain text; the assistant's reply is Markdown. -->
+                  <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" IsVisible="{Binding IsPlainText}" />
+                  <mv:MarkdownViewer local:MarkdownMessage.Source="{Binding}" IsVisible="{Binding IsAssistant}" />
+                  <TextBlock Text="..." Opacity="0.6" IsVisible="{Binding IsStreaming}" />
+                </StackPanel>
+              </Border>
+              <!-- An "apply this change?" question, in the conversation where it was asked. -->
+              <ContentControl Content="{Binding Approval}" IsVisible="{Binding IsApproval}">
+                <ContentControl.ContentTemplate>
+                  <DataTemplate x:DataType="vm:ApprovalRequestViewModel">
+                    <local:ApprovalCard />
+                  </DataTemplate>
+                </ContentControl.ContentTemplate>
+              </ContentControl>
+            </Panel>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
