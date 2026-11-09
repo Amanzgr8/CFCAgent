@@ -1,4 +1,5 @@
 using Avalonia;
+using CFCAgent.App.Core;
 
 namespace CFCAgent.App;
 
@@ -7,6 +8,7 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        StartupTrace.Mark("Main entered");
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 

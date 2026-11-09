@@ -19,6 +19,7 @@ public partial class App : Application
         {
             // --demo runs on the echo-only stub with no database or server (handy for a quick look at the window).
             // Otherwise the app connects to the real backend after the window opens, read-only by default.
+            StartupTrace.Mark("framework initialized");
             bool demo = desktop.Args?.Contains("--demo") == true;
             ChatViewModel viewModel = demo ? ChatViewModel.CreateDemo(TimeSpan.FromMilliseconds(60)) : new ChatViewModel();
             MainWindow window = new MainWindow { DataContext = viewModel };
@@ -42,12 +43,22 @@ public partial class App : Application
                     new LocalBackendConnectionTester(),
                     defaultProductConfig,
                     CredentialStoreFactory.StoreName));
-                window.Opened += async (_, _) => await viewModel.ConnectAsync(connectorForMode(false));
+                window.Opened += async (_, _) =>
+                {
+                    StartupTrace.Mark("window opened");
+                    await viewModel.ConnectAsync(connectorForMode(false));
+                    StartupTrace.Mark(viewModel.IsConnected ? "connected" : "connection failed");
+                };
             }
 
             // Closing the app ends the MCP server child process. Run on the thread pool so waiting here
             // cannot deadlock with the UI thread.
-            desktop.Exit += (_, _) => Task.Run(() => viewModel.DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(5));
+            desktop.Exit += (_, _) =>
+            {
+                StartupTrace.Mark("exit begins");
+                Task.Run(() => viewModel.DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(5));
+                StartupTrace.Mark("server shut down");
+            };
 
             desktop.MainWindow = window;
         }
