@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using CFCAgent.App.Core;
 
@@ -14,7 +15,10 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        InputBox.KeyDown += OnInputKeyDown;
+        // Tunnel, not the usual bubble: the text box handles Enter itself (it adds a new line, because it
+        // accepts multi-line text), so a normal KeyDown handler would never see the key. Tunnelling reaches
+        // this handler first, which can send the message and mark the key handled.
+        InputBox.AddHandler(KeyDownEvent, OnInputKeyDown, RoutingStrategies.Tunnel);
         DataContextChanged += OnDataContextChanged;
     }
 

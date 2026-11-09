@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CFCAgent.App.Core;
@@ -78,6 +79,72 @@ public class ChatWindowTests
 
         Assert.True(new FileInfo(path).Length > 1000, "the screenshot looks empty");
         await Task.CompletedTask;
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        for (int attempt = 0; attempt < 500 && !condition(); attempt++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            await Task.Delay(5);
+        }
+
+        Assert.True(condition(), "the condition was never met");
+    }
+
+    // Types into the input box and presses keys the way a person would: focus the box, type, press a key.
+    private static (MainWindow Window, ChatViewModel ViewModel, TextBox InputBox) OpenWithTypedText(string text)
+    {
+        ChatViewModel viewModel = ChatViewModel.CreateDemo(TimeSpan.Zero);
+        MainWindow window = new MainWindow { DataContext = viewModel };
+        window.Show();
+        TextBox inputBox = window.FindControl<TextBox>("InputBox")!;
+        inputBox.Focus();
+        window.KeyTextInput(text);
+        Dispatcher.UIThread.RunJobs();
+        return (window, viewModel, inputBox);
+    }
+
+    [AvaloniaFact]
+    public async Task PressingEnter_SendsTheMessage()
+    {
+        (MainWindow window, ChatViewModel viewModel, TextBox _) = OpenWithTypedText("hello there");
+        Assert.Equal("hello there", viewModel.Input);
+
+        window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        window.KeyReleaseQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+
+        await WaitUntilAsync(() => viewModel.Messages.Count == 2 && !viewModel.IsBusy);
+        Assert.Equal("hello there", viewModel.Messages[0].Text);
+        Assert.Equal("", viewModel.Input);
+    }
+
+    [AvaloniaFact]
+    public async Task PressingShiftEnter_AddsALineAndDoesNotSend()
+    {
+        (MainWindow window, ChatViewModel viewModel, TextBox _) = OpenWithTypedText("first line");
+
+        window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.Shift);
+        window.KeyReleaseQwerty(PhysicalKey.Enter, RawInputModifiers.Shift);
+        await Task.Delay(100);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Empty(viewModel.Messages);
+        Assert.Contains("\n", viewModel.Input);
+        Assert.StartsWith("first line", viewModel.Input);
+    }
+
+    [AvaloniaFact]
+    public async Task PressingEnterWithNothingTyped_DoesNothing()
+    {
+        (MainWindow window, ChatViewModel viewModel, TextBox _) = OpenWithTypedText("   ");
+
+        window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        window.KeyReleaseQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        await Task.Delay(100);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Empty(viewModel.Messages);
     }
 
     [AvaloniaFact]
