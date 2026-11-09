@@ -54,7 +54,7 @@ string serverDll = GetOption("--server-dll")
 
 bool verbose = args.Contains("--verbose");
 
-TenantSettings tenantSettings = new TenantSettings(GetOption("--tenant-config") ?? TenantSettings.DefaultConfigPath, new WindowsCredentialStore());
+TenantSettings tenantSettings = new TenantSettings(GetOption("--tenant-config") ?? TenantSettings.DefaultConfigPath, CredentialStoreFactory.Create());
 
 if (args.Contains("--setup"))
 {
