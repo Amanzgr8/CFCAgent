@@ -6,7 +6,7 @@ namespace CFCAgent.App.Core;
 
 public sealed class LocalBackendOptions
 {
-    public const string DefaultModel = "claude-sonnet-5-5";
+    public const string DefaultModel = "claude-haiku-5-5";
 
     // Read-only is the default: the model is not even offered the tools that change data. Allowing writes
     // needs the approval dialog (spike step 5), so nothing in the app turns this off yet.
