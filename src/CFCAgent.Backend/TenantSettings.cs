@@ -76,6 +76,14 @@ public sealed class TenantSettings
         File.WriteAllText(_configPath, JsonSerializer.Serialize(config, JsonOptions));
     }
 
+    // Removes one tenant's stored connection string without touching tenant.json. For when a tenant is renamed:
+    // the connection string is saved under the new name, and the old name's copy must not be left behind.
+    // Returns true when something was removed.
+    public bool RemoveStoredConnection(string tenantName)
+    {
+        return _credentials.Delete(CredentialTarget(tenantName));
+    }
+
     // Removes the stored connection string and tenant.json. Returns true when a stored connection
     // string was removed.
     public bool Forget()

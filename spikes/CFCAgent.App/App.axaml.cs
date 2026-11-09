@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using CFCAgent.App.Core;
+using CFCAgent.Backend;
 
 namespace CFCAgent.App;
 
@@ -33,6 +34,14 @@ public partial class App : Application
                     ConfirmAsync = allowChanges ? approvals.ConfirmAsync : null,
                 });
                 viewModel.EnableModeSwitch(connectorForMode);
+
+                // The settings screen: the same tenant setup and credential store the CLI's --setup uses.
+                string defaultProductConfig = LocalBackendLocations.DefaultProductConfigPath();
+                viewModel.AttachSettings(new SettingsViewModel(
+                    new TenantSettings(TenantSettings.DefaultConfigPath, CredentialStoreFactory.Create()),
+                    new LocalBackendConnectionTester(),
+                    defaultProductConfig,
+                    CredentialStoreFactory.StoreName));
                 window.Opened += async (_, _) => await viewModel.ConnectAsync(connectorForMode(false));
             }
 

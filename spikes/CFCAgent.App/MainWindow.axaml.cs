@@ -67,10 +67,21 @@ public partial class MainWindow : Window
 
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape && DataContext is ChatViewModel { PendingApproval: ApprovalRequestViewModel pending })
+        if (e.Key != Key.Escape || DataContext is not ChatViewModel viewModel)
+        {
+            return;
+        }
+
+        if (viewModel.PendingApproval is ApprovalRequestViewModel pending)
         {
             e.Handled = true;
             pending.CancelCommand.Execute(null);
+        }
+        else if (viewModel.Settings is { IsOpen: true } settings)
+        {
+            // Esc closes the settings screen (and drops anything typed into the secret box).
+            e.Handled = true;
+            settings.Close();
         }
     }
 

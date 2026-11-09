@@ -111,6 +111,21 @@ public sealed class TenantSettingsTests : IDisposable
     }
 
     [Fact]
+    public void RemoveStoredConnection_RemovesOnlyThatTenantsSecret_AndLeavesTheConfigFile()
+    {
+        TenantSettings settings = NewSettings();
+        settings.Save(new TenantConfig { TenantName = "old-name" }, SecretConnectionString);
+        settings.Save(new TenantConfig { TenantName = "new-name" }, SecretConnectionString);
+
+        Assert.True(settings.RemoveStoredConnection("old-name"));
+
+        Assert.Null(_credentials.Get(TenantSettings.CredentialTarget("old-name")));
+        Assert.Equal(SecretConnectionString, _credentials.Get(TenantSettings.CredentialTarget("new-name")));
+        Assert.Equal("new-name", settings.Load()!.TenantName);
+        Assert.False(settings.RemoveStoredConnection("old-name"), "a second removal finds nothing");
+    }
+
+    [Fact]
     public void Forget_WhenNothingIsSetUp_ReportsNothingRemoved()
     {
         Assert.False(NewSettings().Forget());

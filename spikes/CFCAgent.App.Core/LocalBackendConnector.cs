@@ -26,6 +26,10 @@ public sealed class LocalBackendOptions
 
     public string? ProductConfigPath { get; init; }
 
+    // A connection string to use instead of the saved tenant setup, for testing settings that have not been
+    // saved yet. Goes to the server's environment only, like a saved one.
+    public string? ConnectionStringOverride { get; init; }
+
     // Use the echo-only stub even when ANTHROPIC_API_KEY is set (tests).
     public bool ForceStubModel { get; init; }
 
@@ -50,18 +54,28 @@ public sealed class LocalBackendConnector : IChatConnector
 
     public async Task<ChatConnection> ConnectAsync(CancellationToken cancellationToken)
     {
-        string root = FindRepoRoot();
-        string serverDll = _options.ServerDllPath ?? DefaultServerDll(root);
+        string serverDll = _options.ServerDllPath ?? LocalBackendLocations.DefaultServerDll();
         if (!File.Exists(serverDll))
         {
             throw new FileNotFoundException($"The MCP server has not been built: {serverDll} does not exist. Build the solution first.");
         }
 
-        TenantSettings settings = new TenantSettings(
-            _options.TenantConfigPath ?? TenantSettings.DefaultConfigPath,
-            _options.Credentials ?? CredentialStoreFactory.Create());
-        string defaultProductConfig = Path.Combine(root, "products", "cfc-fertilizer", "schema-map.yaml");
-        ResolvedConnection resolved = TenantConnection.Resolve(settings, defaultProductConfig, _options.ProductConfigPath);
+        string defaultProductConfig = LocalBackendLocations.DefaultProductConfigPath();
+        ResolvedConnection resolved;
+        if (_options.ConnectionStringOverride is not null)
+        {
+            resolved = new ResolvedConnection(
+                _options.ProductConfigPath ?? defaultProductConfig,
+                _options.ConnectionStringOverride,
+                "the settings being tested");
+        }
+        else
+        {
+            TenantSettings settings = new TenantSettings(
+                _options.TenantConfigPath ?? TenantSettings.DefaultConfigPath,
+                _options.Credentials ?? CredentialStoreFactory.Create());
+            resolved = TenantConnection.Resolve(settings, defaultProductConfig, _options.ProductConfigPath);
+        }
 
         ServerLogBuffer log = new ServerLogBuffer();
         McpToolHost host;
@@ -139,29 +153,5 @@ public sealed class LocalBackendConnector : IChatConnector
         }
 
         return (new AnthropicClient().AsIChatClient(_options.Model, 4096), $"model {_options.Model}");
-    }
-
-    // Development layout: the repository root holds CFCAgent.sln, and the server is built under src/.
-    private static string FindRepoRoot()
-    {
-        DirectoryInfo? dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null)
-        {
-            if (File.Exists(Path.Combine(dir.FullName, "CFCAgent.sln")))
-            {
-                return dir.FullName;
-            }
-
-            dir = dir.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate the repository root (CFCAgent.sln), so the MCP server cannot be found.");
-    }
-
-    // Uses the same build configuration as the running app (Debug beside Debug), falling back to Debug.
-    private static string DefaultServerDll(string root)
-    {
-        string configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name is "Release" ? "Release" : "Debug";
-        return Path.Combine(root, "src", "CFCAgent.McpServer", "bin", configuration, "net10.0", "CFCAgent.McpServer.dll");
     }
 }

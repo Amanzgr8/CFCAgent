@@ -12,6 +12,14 @@ public static class CredentialStoreFactory
         return Create(OperatingSystem.IsWindows());
     }
 
+    // What to call the store in the UI ("Saved in ..."), for the platform the app is running on.
+    public static string StoreName => StoreNameFor(OperatingSystem.IsWindows());
+
+    public static string StoreNameFor(bool isWindows)
+    {
+        return isWindows ? "Windows Credential Manager" : "the operating system's credential store (not supported on this platform yet)";
+    }
+
     public static ICredentialStore Create(bool isWindows)
     {
         return isWindows

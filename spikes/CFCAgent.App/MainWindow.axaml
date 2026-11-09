@@ -90,7 +90,7 @@
     </Grid>
 
     <StackPanel Grid.Row="2" Margin="16,0,16,8" Spacing="2">
-      <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
         <!-- Which mode this session is in, always visible: read-only, or changes allowed (amber). -->
         <Border Grid.Column="0" x:Name="ModeBadgeBorder" Classes="badge" Classes.writes="{Binding AllowChanges}"
                 IsVisible="{Binding CanSwitchMode}">
@@ -102,8 +102,23 @@
                 Command="{Binding ToggleChangesCommand}" IsVisible="{Binding CanSwitchMode}" FontSize="12" Padding="8,2" />
         <Button Grid.Column="3" Content="Retry" Command="{Binding RetryConnectionCommand}"
                 IsVisible="{Binding !IsConnected}" FontSize="12" Padding="8,2" />
+        <Button Grid.Column="4" x:Name="SettingsButton" Content="Settings" Command="{Binding OpenSettingsCommand}"
+                IsVisible="{Binding HasSettings}" FontSize="12" Padding="8,2" />
       </Grid>
       <TextBlock Text="{Binding RuntimeInfo}" FontSize="11" Opacity="0.55" TextTrimming="CharacterEllipsis" />
     </StackPanel>
+
+    <!-- The settings screen, laid over the chat and the input box (the footer stays visible). -->
+    <Border x:Name="SettingsOverlay" Grid.Row="0" Grid.RowSpan="2"
+            Background="{Binding $parent[Window].Background}"
+            IsVisible="{Binding Settings.IsOpen, FallbackValue=False}">
+      <ContentControl Content="{Binding Settings}">
+        <ContentControl.ContentTemplate>
+          <DataTemplate x:DataType="vm:SettingsViewModel">
+            <local:SettingsPanel />
+          </DataTemplate>
+        </ContentControl.ContentTemplate>
+      </ContentControl>
+    </Border>
   </Grid>
 </Window>

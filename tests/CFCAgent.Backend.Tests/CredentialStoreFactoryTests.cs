@@ -11,6 +11,13 @@ public class CredentialStoreFactoryTests
     }
 
     [Fact]
+    public void StoreNameFor_NamesTheStoreForTheUi()
+    {
+        Assert.Equal("Windows Credential Manager", CredentialStoreFactory.StoreNameFor(isWindows: true));
+        Assert.Contains("not supported", CredentialStoreFactory.StoreNameFor(isWindows: false));
+    }
+
+    [Fact]
     public void Create_OffWindows_ReturnsTheStoreThatExplainsTheGap()
     {
         Assert.IsType<UnsupportedCredentialStore>(CredentialStoreFactory.Create(isWindows: false));

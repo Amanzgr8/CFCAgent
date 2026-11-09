@@ -23,6 +23,7 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleChangesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenSettingsCommand))]
     private bool _isBusy;
 
     // Sending is only possible once a backend is connected.
@@ -34,6 +35,7 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RetryConnectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleChangesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenSettingsCommand))]
     private bool _isConnecting;
 
     // Whether this session may change data. Always false at startup: every launch is read-only until the
@@ -105,7 +107,15 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
         catch (Exception ex)
         {
             ConnectionStatus = "Not connected";
-            Messages.Add(new ChatMessageViewModel(ChatAuthor.Notice, $"Could not connect: {ex.Message}"));
+            Messages.Add(new ChatMessageViewModel(
+                ChatAuthor.Notice,
+                Settings is null ? $"Could not connect: {ex.Message}" : $"Could not connect: {ex.Message} Open Settings to check the connection."));
+
+            // First run: there is nothing saved yet, so take the user straight to the place to enter it.
+            if (Settings is { IsOpen: false } settings && settings.NeedsSetup())
+            {
+                settings.Open("First-time setup: enter your database connection to get started.");
+            }
         }
         finally
         {
@@ -138,23 +148,68 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
     // handshake are fixed when a session connects, so this ends the current server process and starts a
     // fresh connection and a fresh conversation (the model would otherwise remember the old mode's tools).
     [RelayCommand(CanExecute = nameof(CanToggleChanges))]
-    private async Task ToggleChangesAsync()
+    private Task ToggleChangesAsync()
     {
         bool target = !AllowChanges;
-        IChatConnector connector = _connectorForMode!(target);
+        return RestartAsync(
+            target,
+            target
+                ? "Changes are now allowed. The assistant can propose a change, and nothing is applied unless you approve it on the approval card. This started a new conversation."
+                : "Back to read-only. The assistant can no longer change anything. This started a new conversation.");
+    }
+
+    // Ends the current connection and starts a fresh one (and a fresh conversation) in the given mode.
+    private async Task RestartAsync(bool allowChanges, string notice)
+    {
+        IChatConnector connector = _connectorForMode!(allowChanges);
 
         await DisposeAsync();
         _session = null;
         IsConnected = false;
         Messages.Clear();
-        AllowChanges = target;
-        Messages.Add(new ChatMessageViewModel(
-            ChatAuthor.Notice,
-            target
-                ? "Changes are now allowed. The assistant can propose a change, and nothing is applied unless you approve it on the approval card. This started a new conversation."
-                : "Back to read-only. The assistant can no longer change anything. This started a new conversation."));
+        AllowChanges = allowChanges;
+        Messages.Add(new ChatMessageViewModel(ChatAuthor.Notice, notice));
 
         await ConnectAsync(connector);
+    }
+
+    // ---- Settings ----
+
+    // The settings screen, once the app has given one to the window. Without it there is no Settings button.
+    public SettingsViewModel? Settings { get; private set; }
+
+    public bool HasSettings => Settings is not null;
+
+    public void AttachSettings(SettingsViewModel settings)
+    {
+        Settings = settings;
+        settings.Saved += (_, _) => _ = ReconnectAfterSettingsAsync();
+        OnPropertyChanged(nameof(Settings));
+        OnPropertyChanged(nameof(HasSettings));
+        OpenSettingsCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanOpenSettings()
+    {
+        return Settings is not null && !IsBusy && !IsConnecting;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOpenSettings))]
+    private void OpenSettings()
+    {
+        Settings!.Open();
+    }
+
+    // New settings may point at a different database, so the connection is rebuilt in read-only mode, whatever
+    // the mode was before. Changes have to be allowed again, on purpose, for the new database.
+    private async Task ReconnectAfterSettingsAsync()
+    {
+        if (_connectorForMode is null)
+        {
+            return;
+        }
+
+        await RestartAsync(false, "Settings saved. Reconnecting in read-only mode. This started a new conversation.");
     }
 
     private bool CanRetryConnection()
