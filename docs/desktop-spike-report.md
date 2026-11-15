@@ -4,6 +4,22 @@ Written 2026-11-09, at the end of the spike (steps 0 to 8; the optional step 7, 
 Everything below was run on one machine: Windows 11 ARM64 running as a virtual machine on Apple silicon, 6 cores,
 12.8 GB of memory, .NET 10, Avalonia 12.1.5. Nothing was run on macOS, Linux or x64.
 
+**Updated 2026-11-15:** the open items below were decided, and the spike is closed. See
+"Decisions taken after the spike". The rest of this report is unchanged and describes the spike as it ended.
+
+## Decisions taken after the spike (2026-11-15)
+
+Avalonia is the framework for the Windows product. The five items that were open before moving the spike into the
+product were decided as follows:
+
+| Open item | Decision |
+|---|---|
+| Mac and Linux never run | **Not tested for now.** The app is still unproven there. That run must happen before shipping to either. |
+| A real change through the approval card | **Tested by hand** in the desktop app, by the user. No automated test writes to a database. |
+| The app only finds the server in a development checkout | **The app will ship with the server.** Nothing is built for that yet. |
+| Long conversations use too much memory | **Future development,** after the MVP: virtualize the message list (see the roadmap). |
+| Small loose ends in the screens | **Fixed when the product's screens are built** from the modern look in `spikes/CFCAgent.UiShowcase`, which replaces the spike's screens. The loose ends: Allow changes and Retry stay clickable while Settings is open, the mode-change notice is styled as an error, and audit lines are not shown. |
+
 ## Verdict
 
 **Avalonia passed every test the spike set for it on Windows, and nothing it showed us argues for switching to
