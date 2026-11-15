@@ -20,6 +20,10 @@ product were decided as follows:
 | Long conversations use too much memory | **Future development,** after the MVP: virtualize the message list (see the roadmap). |
 | Small loose ends in the screens | **Fixed when the product's screens are built** from the modern look in `spikes/CFCAgent.UiShowcase`, which replaces the spike's screens. The loose ends: Allow changes and Retry stay clickable while Settings is open, the mode-change notice is styled as an error, and audit lines are not shown. |
 
+**First step of the move, done 2026-11-15:** the logic layer is product code now. `CFCAgent.App.Core` moved from
+`spikes/` to `src/`, its tests moved to `tests/CFCAgent.App.Core.Tests`, and both are part of `CFCAgent.sln`. The
+spike's screens stay in `spikes/CFCAgent.App` as the working reference until the new screens replace them.
+
 ## Verdict
 
 **Avalonia passed every test the spike set for it on Windows, and nothing it showed us argues for switching to
@@ -143,7 +147,7 @@ CFCAGENT_BENCH=1 dotnet test spikes/CFCAgent.App.Tests -c Release \
 dotnet test spikes/CFCAgent.Markdown.Bakeoff                           # the Markdown comparison (about 3 minutes)
 dotnet build spikes/CFCAgent.App -c Release
 spikes/tools/measure-startup.ps1 -Exe <path to CFCAgent.App.exe> -Label "Release" -Runs 5
-CFCAGENT_LIVE_TESTS=1 dotnet test spikes/CFCAgent.App.Core.Tests       # read-only checks against your real database
+CFCAGENT_LIVE_TESTS=1 dotnet test tests/CFCAgent.App.Core.Tests        # read-only checks against your real database
 ```
 
 Screenshots and result files go to `CFCAGENT_SCREENSHOT_DIR` when it is set.
