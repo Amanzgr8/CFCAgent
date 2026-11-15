@@ -12,7 +12,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import KeepTogether, ListFlowable, ListItem, Paragraph, SimpleDocTemplate, Spacer
 
 OUT = r"C:\Users\amanu\Desktop\Fertilizer Chatbot\CFC_AI_Assistant_Roadmap.pdf"
-UPDATED = "2026-11-08"
+UPDATED = "2026-11-14"
 
 DARK = Color(0.101961, 0.101961, 0.101961)
 STATUS_COLORS = {
@@ -173,11 +173,21 @@ FUTURE = [
         "<b>Write the SQL per product and engine.</b> A SQL Server product would ship its own schema map. This is likely the largest part of the work.",
         "<b>Do it with a real second product in Phase 6</b>, not ahead of time. An abstraction designed without a real SQL Server database to test against tends to be wrong. Until then, keep SQL in the schema map and out of C#. The one exception is the binder tool's hand-written SQL, which is plain and should port easily but needs checking.",
     ]),
-    ("Mobile and remote access are out of scope (decision 2026-11-08)", [
-        "The design assumes the backend runs on the same machine as the app and launches the MCP server as a child process. iOS does not allow an app to spawn child processes, and a phone should not hold database credentials, so phones and tablets would need a hosted backend service with user sign-in, TLS and per-user approval records.",
+    ("Prompt caching: every request sends the whole conversation again (after the MVP)", [
+        "ChatSession sends the system prompt, the tool definitions and the full history to the model on every request, and more than once per message when the model calls tools, because each tool result is sent back with everything before it. Nothing is cached, trimmed or summarized. The cost of each question therefore grows with the length of the conversation, and a very long conversation would eventually reach the model's context limit and fail.",
     ], [
-        "<b>What would make it possible later:</b> CFCAgent.Backend is a plain class library and approvals already flow through one callback (ConfirmAsync), so an ASP.NET Core host could be added around it without changing the server or the tools. The credential store would then live on that host.",
-        "<b>What it would cost:</b> authentication and roles move from Phase 7 to the front of the plan, plus network security and a SignalR-style channel for streaming replies and approvals.",
+        "<b>Turn on prompt caching</b> for the part of each request that repeats: the tool definitions, the system prompt and the earlier turns. The model provider bills a cached prefix at a lower rate than fresh input.",
+        "<b>Measure first.</b> Log the input tokens and cached tokens of each request, so the saving is a number and not a guess.",
+        "<b>Confirm the rules when building it:</b> the smallest prefix that can be cached, how long a cache lasts, and how to set it through the Anthropic SDK and Microsoft.Extensions.AI. These were not checked for this note.",
+        "<b>Not covered by caching:</b> the context limit. Dropping or summarizing old turns, and shortening old tool results, would be separate work.",
+    ]),
+    ("Long conversations use too much memory in the desktop app: virtualize the message list (after the MVP)", [
+        "Measured in the desktop spike: each reply that holds a 50-row table costs about 6 MB of managed memory (about 660 on-screen elements), because the message list keeps every message built on screen. A hundred such replies use about 620 MB and take 4.8 s to lay out at once. Streaming stayed smooth throughout, and ordinary short replies cost far less.",
+    ], [
+        "<b>Virtualize the message list:</b> build on-screen elements only for the messages in view, plus a few above and below, and reuse them while scrolling. The messages themselves stay in memory as text, which is cheap.",
+        "<b>What needs care:</b> messages have different heights and a reply that is still streaming keeps growing, so the scroll position must stay steady.",
+        "<b>An alternative or addition:</b> collapse old replies to a short summary line that expands on a click.",
+        "<b>Check it with the same benchmark:</b> LongConversationBenchmarkTests (set CFCAGENT_BENCH=1), which produced the numbers above.",
     ]),
 ]
 

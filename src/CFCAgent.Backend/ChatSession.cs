@@ -25,19 +25,13 @@ public sealed class ChatSession
 
     public IReadOnlyList<ChatMessage> History => _history;
 
-    public async Task<string> SendAsync(string userMessage, CancellationToken cancellationToken = default)
-    {
-        _history.Add(new ChatMessage(ChatRole.User, userMessage));
-        ChatResponse response = await _client.GetResponseAsync(_history, _options, cancellationToken);
-        _history.AddMessages(response);
-        return response.Text;
-    }
-
-    // Streaming version of SendAsync: yields the model's reply piece by piece as it arrives, including
-    // any tool calls and their results, so a UI can show text growing and tool activity live. A turn
-    // is added to the history only once the reply has run to the end. A reply that is cancelled,
-    // fails, or is abandoned part-way leaves the history as it was, because a half-finished tool call
-    // left in it would make the next request fail.
+    // Sends one message and yields the model's reply piece by piece as it arrives, including any tool
+    // calls and their results, so a caller can show text growing and tool activity live. This is the
+    // only way to send a message: a caller that just wants the whole reply joins the pieces' Text.
+    // The whole history goes to the model on every request. A turn is added to the history only once
+    // the reply has run to the end. A reply that is cancelled, fails, or is abandoned part-way leaves
+    // the history as it was, because a half-finished tool call left in it would make the next request
+    // fail.
     public async IAsyncEnumerable<ChatResponseUpdate> SendStreamingAsync(
         string userMessage,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)

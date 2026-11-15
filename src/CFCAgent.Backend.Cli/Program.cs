@@ -204,7 +204,33 @@ while (true)
         continue;
     }
 
-    Console.WriteLine(await session.SendAsync(line));
+    // Print the reply as it arrives. Tool calls and tool results carry no text, so only the model's
+    // words are shown.
+    bool midLine = false;
+    await foreach (ChatResponseUpdate update in session.SendStreamingAsync(line))
+    {
+        string text = update.Text;
+        if (text.Length == 0)
+        {
+            // A tool is being called: end the current line so that whatever the model says after
+            // the tool has run starts on a new one.
+            if (midLine && update.Contents.Any(content => content is FunctionCallContent))
+            {
+                Console.WriteLine();
+                midLine = false;
+            }
+
+            continue;
+        }
+
+        Console.Write(text);
+        midLine = !text.EndsWith('\n');
+    }
+
+    if (midLine)
+    {
+        Console.WriteLine();
+    }
 }
 
 return 0;
