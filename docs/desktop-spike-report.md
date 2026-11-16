@@ -21,8 +21,24 @@ product were decided as follows:
 | Small loose ends in the screens | **Fixed when the product's screens are built** from the modern look in `spikes/CFCAgent.UiShowcase`, which replaces the spike's screens. The loose ends: Allow changes and Retry stay clickable while Settings is open, the mode-change notice is styled as an error, and audit lines are not shown. |
 
 **First step of the move, done 2026-11-15:** the logic layer is product code now. `CFCAgent.App.Core` moved from
-`spikes/` to `src/`, its tests moved to `tests/CFCAgent.App.Core.Tests`, and both are part of `CFCAgent.sln`. The
-spike's screens stay in `spikes/CFCAgent.App` as the working reference until the new screens replace them.
+`spikes/` to `src/`, its tests moved to `tests/CFCAgent.App.Core.Tests`, and both are part of `CFCAgent.sln`.
+
+**Second step, done the same day:** the app itself is product code, with the modern look. `spikes/CFCAgent.App`
+moved to `src/CFCAgent.App` and its window tests to `tests/CFCAgent.App.Tests`, and its three screens (chat,
+approval card, settings) were restyled with the look from `spikes/CFCAgent.UiShowcase`: brown sidebar, green
+accent, tan line under the top bar, light and dark. Only what the app really does was carried over. The
+showcase's other pages and controls (the formulas dashboard, ingredients, customers, recent chats, new chat,
+search, notifications, attachments, the model picker, suggestion chips, reply buttons and lookup tags) were left
+out because nothing behind them exists yet; the showcase stays in `spikes/` as the reference for them.
+
+The read-only / changes-allowed mode is now one switch inside the message box (off and green for read-only, on and
+amber when changes are allowed). It replaces the badge and the separate button the spike had in its footer.
+
+Two of the loose ends were fixed in that step: a notice is now shown as information unless it reports a failure,
+and the mode switch and Retry are not offered while Settings is open. Audit lines and the tool-call display are still
+not shown. Measured after the restyle (Release, four runs, same machine): window in about 0.9 s, connected in about
+1.6 s, 220 MB in use (104 MB private). That is about 0.2 s and 48 MB more than the spike's plain screens, numbers
+below.
 
 ## Verdict
 
@@ -141,11 +157,11 @@ anything ships.
 ## How to reproduce
 
 ```
-dotnet test spikes/CFCAgent.App.Tests                                  # the window tests, with real clicks
-CFCAGENT_BENCH=1 dotnet test spikes/CFCAgent.App.Tests -c Release \
+dotnet test tests/CFCAgent.App.Tests                                   # the window tests, with real clicks
+CFCAGENT_BENCH=1 dotnet test tests/CFCAgent.App.Tests -c Release \
     --filter "FullyQualifiedName~LongConversation"                     # the long-conversation benchmark
 dotnet test spikes/CFCAgent.Markdown.Bakeoff                           # the Markdown comparison (about 3 minutes)
-dotnet build spikes/CFCAgent.App -c Release
+dotnet build src/CFCAgent.App -c Release
 spikes/tools/measure-startup.ps1 -Exe <path to CFCAgent.App.exe> -Label "Release" -Runs 5
 CFCAGENT_LIVE_TESTS=1 dotnet test tests/CFCAgent.App.Core.Tests        # read-only checks against your real database
 ```

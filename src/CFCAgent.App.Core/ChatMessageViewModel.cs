@@ -25,10 +25,11 @@ public sealed partial class ChatMessageViewModel : ObservableObject
     [ObservableProperty]
     private bool _isStreaming;
 
-    public ChatMessageViewModel(ChatAuthor author, string text)
+    public ChatMessageViewModel(ChatAuthor author, string text, bool isError = false)
     {
         Author = author;
         _text = text;
+        IsError = isError;
     }
 
     public ChatMessageViewModel(ApprovalRequestViewModel approval)
@@ -48,6 +49,14 @@ public sealed partial class ChatMessageViewModel : ObservableObject
     public bool IsAssistant => Author == ChatAuthor.Assistant;
 
     public bool IsNotice => Author == ChatAuthor.Notice;
+
+    // A notice that reports a failure (could not connect, the reply failed). Other notices are plain
+    // information, such as "Changes are now allowed", and the window shows the two differently.
+    public bool IsError { get; }
+
+    public bool IsErrorNotice => IsNotice && IsError;
+
+    public bool IsInfoNotice => IsNotice && !IsError;
 
     public bool IsApproval => Author == ChatAuthor.Approval;
 

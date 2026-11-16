@@ -1,0 +1,212 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="CFCAgent.App.App"
+             RequestedThemeVariant="Default">
+
+  <!-- The app's own colours, once for light and once for dark. Every screen uses these names, so the
+       whole app follows the theme without any per-screen work.
+
+       The colours follow cfctech.com: its dark brown header (#422E15) is the sidebar, its green button
+       colour (#38A065) is the accent, its link blue (#3E65B0) marks information, its tan strip (#AE8350)
+       is the thin line under the top bar, and its greys (#35373C headings, #656972 text, #F5F5F5
+       sections) are the text and backgrounds. Warning and danger are the site's #F0AD4E and #D9534F.
+       The light accent is the site's green one shade darker (#2D8553) so white text on it stays
+       readable.
+
+       The sidebar always uses the Dark set (see MainWindow.axaml), because it is brown in both modes. -->
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="AppBg" Color="#F5F5F5" />
+          <SolidColorBrush x:Key="SidebarBg" Color="#422E15" />
+          <SolidColorBrush x:Key="CardBg" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="SoftBg" Color="#F0EEEB" />
+          <SolidColorBrush x:Key="Line" Color="#E4E1DC" />
+          <SolidColorBrush x:Key="Ink" Color="#35373C" />
+          <SolidColorBrush x:Key="InkSoft" Color="#656972" />
+          <SolidColorBrush x:Key="InkMuted" Color="#80848D" />
+          <SolidColorBrush x:Key="Brand" Color="#2D8553" />
+          <SolidColorBrush x:Key="BrandSoft" Color="#E1F2E8" />
+          <SolidColorBrush x:Key="BrandInk" Color="#1F6B41" />
+          <SolidColorBrush x:Key="Tan" Color="#AE8350" />
+          <SolidColorBrush x:Key="HoverBg" Color="#1235373C" />
+          <SolidColorBrush x:Key="SelectedBg" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="WarnSoft" Color="#FDF3E1" />
+          <SolidColorBrush x:Key="WarnLine" Color="#F0CB8E" />
+          <SolidColorBrush x:Key="WarnInk" Color="#8A5A0B" />
+          <SolidColorBrush x:Key="DangerSoft" Color="#FBE9E8" />
+          <SolidColorBrush x:Key="DangerLine" Color="#F0BFBD" />
+          <SolidColorBrush x:Key="DangerInk" Color="#B0302C" />
+          <SolidColorBrush x:Key="InfoSoft" Color="#E6ECF7" />
+          <SolidColorBrush x:Key="InfoInk" Color="#3E65B0" />
+          <!-- Overrides of the Fluent theme's own colours: softer input borders and button fills -->
+          <SolidColorBrush x:Key="TextControlBorderBrush" Color="#D9D6D1" />
+          <SolidColorBrush x:Key="ButtonBackground" Color="#EFEDEA" />
+          <SolidColorBrush x:Key="ButtonBorderBrush" Color="#DFDCD7" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="AppBg" Color="#1D1E21" />
+          <SolidColorBrush x:Key="SidebarBg" Color="#2C1F0F" />
+          <SolidColorBrush x:Key="CardBg" Color="#26282C" />
+          <SolidColorBrush x:Key="SoftBg" Color="#2F3136" />
+          <SolidColorBrush x:Key="Line" Color="#3A3C42" />
+          <SolidColorBrush x:Key="Ink" Color="#F2F0ED" />
+          <SolidColorBrush x:Key="InkSoft" Color="#C9C5BF" />
+          <SolidColorBrush x:Key="InkMuted" Color="#99958F" />
+          <SolidColorBrush x:Key="Brand" Color="#38A065" />
+          <SolidColorBrush x:Key="BrandSoft" Color="#1B3A2A" />
+          <SolidColorBrush x:Key="BrandInk" Color="#7ED3A2" />
+          <SolidColorBrush x:Key="Tan" Color="#D0A070" />
+          <SolidColorBrush x:Key="HoverBg" Color="#14FFFFFF" />
+          <SolidColorBrush x:Key="SelectedBg" Color="#1FFFFFFF" />
+          <SolidColorBrush x:Key="WarnSoft" Color="#33280F" />
+          <SolidColorBrush x:Key="WarnLine" Color="#6E5318" />
+          <SolidColorBrush x:Key="WarnInk" Color="#F0AD4E" />
+          <SolidColorBrush x:Key="DangerSoft" Color="#3B1B1A" />
+          <SolidColorBrush x:Key="DangerLine" Color="#6B2E2B" />
+          <SolidColorBrush x:Key="DangerInk" Color="#F08E8A" />
+          <SolidColorBrush x:Key="InfoSoft" Color="#1B2946" />
+          <SolidColorBrush x:Key="InfoInk" Color="#8FAEE8" />
+          <SolidColorBrush x:Key="TextControlBorderBrush" Color="#45474D" />
+          <SolidColorBrush x:Key="ButtonBackground" Color="#303237" />
+          <SolidColorBrush x:Key="ButtonBorderBrush" Color="#3D3F45" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!-- One value rounds the corners of every standard control (buttons, text boxes) -->
+      <CornerRadius x:Key="ControlCornerRadius">8</CornerRadius>
+
+      <!-- The green and the blue of the CFC logo -->
+      <LinearGradientBrush x:Key="BrandGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#38A065" Offset="0" />
+        <GradientStop Color="#3E65B0" Offset="1" />
+      </LinearGradientBrush>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <!-- Avalonia's own theme, tinted with the green of cfctech.com's buttons. -->
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Light" Accent="#2D8553" />
+        <ColorPaletteResources x:Key="Dark" Accent="#38A065" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <!-- MarkView: the viewer template, then the compact chat look (small headings, code in cards). -->
+    <StyleInclude Source="avares://MarkView.Avalonia/Themes/MarkdownTheme.axaml" />
+    <StyleInclude Source="avares://MarkView.Avalonia/Themes/ChatTheme.axaml" />
+
+    <!-- Text -->
+    <Style Selector="TextBlock.h1">
+      <Setter Property="FontSize" Value="19" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    </Style>
+    <Style Selector="TextBlock.h2">
+      <Setter Property="FontSize" Value="14.5" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    </Style>
+    <Style Selector="TextBlock.muted">
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+    </Style>
+    <Style Selector="TextBlock.field">
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="Foreground" Value="{DynamicResource InkSoft}" />
+      <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+
+    <!-- Cards -->
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource CardBg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="14" />
+      <Setter Property="Padding" Value="20" />
+      <Setter Property="BoxShadow" Value="0 1 2 0 #10000000, 0 14 30 -12 #22000000" />
+    </Style>
+
+    <!-- Sidebar navigation buttons, with a short colour fade on hover -->
+    <Style Selector="Button.nav">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="Padding" Value="10,9" />
+      <Setter Property="FontSize" Value="13.5" />
+      <Setter Property="Foreground" Value="{DynamicResource InkSoft}" />
+    </Style>
+    <Style Selector="Button.nav /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.12" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.nav:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource HoverBg}" />
+      <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    </Style>
+    <Style Selector="Button.nav.selected">
+      <Setter Property="Background" Value="{DynamicResource SelectedBg}" />
+      <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.nav.selected ic|SymbolIcon.navicon">
+      <Setter Property="Foreground" Value="{DynamicResource Tan}" />
+    </Style>
+
+    <!-- Quiet icon buttons -->
+    <Style Selector="Button.ghost">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="8" />
+      <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource HoverBg}" />
+      <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    </Style>
+
+    <!-- The round send button -->
+    <Style Selector="Button.send">
+      <Setter Property="Width" Value="38" />
+      <Setter Property="Height" Value="38" />
+      <Setter Property="CornerRadius" Value="19" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- A text box with no frame, for use inside a card that already has one -->
+    <Style Selector="TextBox.bare">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="FontSize" Value="14" />
+    </Style>
+    <Style Selector="TextBox.bare /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.bare:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.bare:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.bare:disabled /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+  </Application.Styles>
+</Application>

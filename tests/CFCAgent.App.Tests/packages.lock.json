@@ -184,6 +184,30 @@
         "resolved": "8.4.2",
         "contentHash": "WadCzGEc2U+3e20avRLng4qNtt4zoOGWrdUISqJWrHe3/FSnrYjuM5Sb4yQb09LhkBXrrI4Zt3dLKgRMbItsrg=="
       },
+      "FluentIcons.Avalonia": {
+        "type": "Transitive",
+        "resolved": "2.1.345",
+        "contentHash": "phMLVfRKMgvlxWjxztcHp4cAs2hwb8Ph6VeOndm/00/THfeRDmOVRT/CabXLq6ca84KGKxsQJnd83jEcBjuLFQ==",
+        "dependencies": {
+          "Avalonia": "12.0.0",
+          "FluentIcons.Common": "[2.1.345]",
+          "FluentIcons.Resources.Avalonia": "[2.1.345]"
+        }
+      },
+      "FluentIcons.Common": {
+        "type": "Transitive",
+        "resolved": "2.1.345",
+        "contentHash": "U408mJGwfHfbJTgN43fXKT1dlGJjfBwDA23Gpw3hYyiw+ZVc/PM44WfyUXsD+Ly9OaCYM8UA3kH2abllkH/MAw=="
+      },
+      "FluentIcons.Resources.Avalonia": {
+        "type": "Transitive",
+        "resolved": "2.1.345",
+        "contentHash": "Jv/opCohbWFnkQxZdzKFzMhCspoZYquTKXtz8SFvl452nPk1mMdxBG3DViaB5eSygYEg1JfTBCWyRcE9DfiYAg==",
+        "dependencies": {
+          "Avalonia": "12.0.0",
+          "FluentIcons.Common": "[2.1.345]"
+        }
+      },
       "HarfBuzzSharp": {
         "type": "Transitive",
         "resolved": "8.3.1.3",
@@ -467,6 +491,7 @@
           "Avalonia.Fonts.Inter": "[12.1.5, )",
           "Avalonia.Themes.Fluent": "[12.1.5, )",
           "CFCAgent.App.Core": "[1.0.0, )",
+          "FluentIcons.Avalonia": "[2.1.345, )",
           "MarkView.Avalonia": "[12.4.0, )"
         }
       },

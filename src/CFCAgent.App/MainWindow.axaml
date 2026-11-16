@@ -1,0 +1,314 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CFCAgent.App.Core"
+        xmlns:local="using:CFCAgent.App"
+        xmlns:mv="using:MarkView.Avalonia"
+        xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="CFCAgent.App.MainWindow"
+        x:DataType="vm:ChatViewModel"
+        Title="CFC Agent"
+        Width="1180" Height="800" MinWidth="760" MinHeight="480"
+        Background="{DynamicResource AppBg}">
+
+  <Window.Styles>
+    <!-- The user's own words: a green bubble on the right. -->
+    <Style Selector="Border.userBubble">
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="MaxWidth" Value="580" />
+      <Setter Property="Background" Value="{DynamicResource Brand}" />
+      <Setter Property="CornerRadius" Value="16,16,4,16" />
+      <Setter Property="Padding" Value="14,10" />
+    </Style>
+    <Style Selector="Border.userBubble SelectableTextBlock">
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <!-- Something the app itself says. Blue for information, red for a failure. -->
+    <Style Selector="Border.notice">
+      <Setter Property="Margin" Value="44,0,0,0" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="Padding" Value="12,9,14,9" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="{DynamicResource InfoSoft}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource InfoSoft}" />
+    </Style>
+    <Style Selector="Border.notice SelectableTextBlock">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    </Style>
+    <Style Selector="Border.notice ic|SymbolIcon">
+      <Setter Property="FontSize" Value="17" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="Foreground" Value="{DynamicResource InfoInk}" />
+    </Style>
+    <Style Selector="Border.notice.error">
+      <Setter Property="Background" Value="{DynamicResource DangerSoft}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DangerLine}" />
+    </Style>
+    <Style Selector="Border.notice.error ic|SymbolIcon">
+      <Setter Property="Foreground" Value="{DynamicResource DangerInk}" />
+    </Style>
+
+    <!-- The words beside the mode switch: green for read-only, amber when changes are allowed. -->
+    <Style Selector="StackPanel.modeLabel TextBlock">
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{DynamicResource BrandInk}" />
+    </Style>
+    <Style Selector="StackPanel.modeLabel ic|SymbolIcon">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{DynamicResource BrandInk}" />
+    </Style>
+    <Style Selector="StackPanel.modeLabel.writes TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource WarnInk}" />
+    </Style>
+    <Style Selector="StackPanel.modeLabel.writes ic|SymbolIcon">
+      <Setter Property="Foreground" Value="{DynamicResource WarnInk}" />
+    </Style>
+
+    <!-- The connection dot in the sidebar: grey until connected, then green. -->
+    <Style Selector="Ellipse.dot">
+      <Setter Property="Width" Value="8" />
+      <Setter Property="Height" Value="8" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Fill" Value="{DynamicResource InkMuted}" />
+    </Style>
+    <Style Selector="Ellipse.dot.on">
+      <Setter Property="Fill" Value="{DynamicResource Brand}" />
+    </Style>
+  </Window.Styles>
+
+  <Grid ColumnDefinitions="240,*">
+
+    <!-- Sidebar: brown like the header of cfctech.com in both light and dark mode, so everything inside
+         it always takes the Dark colour set (light text on a dark surface). -->
+    <Border Grid.Column="0" Background="{DynamicResource SidebarBg}">
+      <ThemeVariantScope RequestedThemeVariant="Dark">
+        <DockPanel Margin="14,18,14,14">
+
+          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="11" Margin="6,0,0,22">
+            <Border Width="36" Height="36" CornerRadius="11" Background="{StaticResource BrandGradient}"
+                    BoxShadow="0 6 14 -4 #66000000">
+              <ic:SymbolIcon Symbol="LeafTwo" IconVariant="Filled" FontSize="19" Foreground="White"
+                             HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBlock Text="CFC Agent" FontSize="15.5" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"
+                       VerticalAlignment="Center" />
+          </StackPanel>
+
+          <!-- Whether the backend is connected, pinned to the bottom. The full status is in the top bar. -->
+          <Border DockPanel.Dock="Bottom" Background="#14FFFFFF" BorderBrush="#1FFFFFFF"
+                  BorderThickness="1" CornerRadius="12" Padding="12,10">
+            <StackPanel Spacing="3">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Ellipse Classes="dot" Classes.on="{Binding IsConnected}" />
+                <Panel>
+                  <TextBlock Text="Connected" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"
+                             IsVisible="{Binding IsConnected}" />
+                  <TextBlock Text="Connecting..." FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"
+                             IsVisible="{Binding IsConnecting}" />
+                  <TextBlock Text="Not connected" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource Ink}">
+                    <TextBlock.IsVisible>
+                      <MultiBinding Converter="{x:Static BoolConverters.And}">
+                        <Binding Path="!IsConnected" />
+                        <Binding Path="!IsConnecting" />
+                      </MultiBinding>
+                    </TextBlock.IsVisible>
+                  </TextBlock>
+                </Panel>
+              </StackPanel>
+              <!-- What the app is actually running on. -->
+              <TextBlock Text="{Binding RuntimeInfo}" FontSize="11" Foreground="{DynamicResource InkMuted}"
+                         TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding RuntimeInfo}" />
+            </StackPanel>
+          </Border>
+
+          <StackPanel DockPanel.Dock="Top" Spacing="2">
+            <!-- Chat is the page behind Settings: choosing it closes the settings screen. -->
+            <Button x:Name="ChatNavButton" Classes="nav"
+                    Classes.selected="{Binding !Settings.IsOpen, FallbackValue=True}">
+              <StackPanel Orientation="Horizontal" Spacing="11">
+                <ic:SymbolIcon Classes="navicon" Symbol="Chat" FontSize="18" VerticalAlignment="Center" />
+                <TextBlock Text="Chat" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="SettingsButton" Classes="nav" Command="{Binding OpenSettingsCommand}"
+                    IsVisible="{Binding HasSettings}"
+                    Classes.selected="{Binding Settings.IsOpen, FallbackValue=False}">
+              <StackPanel Orientation="Horizontal" Spacing="11">
+                <ic:SymbolIcon Classes="navicon" Symbol="Settings" FontSize="18" VerticalAlignment="Center" />
+                <TextBlock Text="Settings" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </DockPanel>
+      </ThemeVariantScope>
+    </Border>
+
+    <!-- Top bar, the conversation and the message box. The tan line under the top bar echoes the tan
+         strip on cfctech.com. -->
+    <Grid Grid.Column="1" RowDefinitions="66,*,Auto">
+      <Border Grid.Row="0" BorderBrush="{DynamicResource Tan}" BorderThickness="0,0,0,2" Padding="28,0,16,0">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+          <StackPanel VerticalAlignment="Center" Spacing="2">
+            <Panel>
+              <TextBlock Classes="h1" Text="Chat" IsVisible="{Binding !Settings.IsOpen, FallbackValue=True}" />
+              <TextBlock Classes="h1" Text="Settings" IsVisible="{Binding Settings.IsOpen, FallbackValue=False}" />
+            </Panel>
+            <!-- One line about the connection: what it is connected to, or why it is not. -->
+            <TextBlock x:Name="StatusLine" Classes="muted" Text="{Binding ConnectionStatus}"
+                       TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ConnectionStatus}" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <!-- Retrying restarts the connection, so it is not offered while the settings screen is open. -->
+            <Panel IsVisible="{Binding !Settings.IsOpen, FallbackValue=True}">
+              <Button x:Name="RetryButton" Content="Retry" Command="{Binding RetryConnectionCommand}"
+                      IsVisible="{Binding !IsConnected}" FontSize="13" Padding="12,6" />
+            </Panel>
+            <Button x:Name="ThemeButton" Classes="ghost" ToolTip.Tip="Switch light / dark">
+              <ic:SymbolIcon x:Name="ThemeIcon" Symbol="WeatherMoon" FontSize="18" />
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <ScrollViewer x:Name="Scroller" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+        <ItemsControl ItemsSource="{Binding Messages}" MaxWidth="880" Margin="32,20,32,10">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="16" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ChatMessageViewModel">
+              <Panel>
+                <!-- The user's words stay plain text. -->
+                <Border Classes="userBubble" IsVisible="{Binding IsUser}">
+                  <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                </Border>
+
+                <!-- The assistant's reply is Markdown, drawn as it arrives. -->
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" IsVisible="{Binding IsAssistant}">
+                  <Border Width="32" Height="32" CornerRadius="16" VerticalAlignment="Top"
+                          Background="{StaticResource BrandGradient}">
+                    <ic:SymbolIcon Symbol="Sparkle" IconVariant="Filled" FontSize="16" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <StackPanel Grid.Column="1" Spacing="8">
+                    <TextBlock Text="CFC Agent" FontSize="13.5" FontWeight="SemiBold" Margin="0,6,0,0"
+                               Foreground="{DynamicResource Ink}" />
+                    <Border Classes="card" Padding="18,12,18,14" HorizontalAlignment="Left">
+                      <StackPanel Spacing="4">
+                        <mv:MarkdownViewer local:MarkdownMessage.Source="{Binding}" />
+                        <TextBlock Classes="muted" Text="..." IsVisible="{Binding IsStreaming}" />
+                      </StackPanel>
+                    </Border>
+                  </StackPanel>
+                </Grid>
+
+                <!-- Something the app itself says, also plain text. -->
+                <Border Classes="notice" Classes.error="{Binding IsError}" IsVisible="{Binding IsNotice}">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="9">
+                    <Panel>
+                      <ic:SymbolIcon Symbol="Info" IsVisible="{Binding IsInfoNotice}" />
+                      <ic:SymbolIcon Symbol="ErrorCircle" IsVisible="{Binding IsErrorNotice}" />
+                    </Panel>
+                    <SelectableTextBlock Grid.Column="1" Text="{Binding Text}" TextWrapping="Wrap" />
+                  </Grid>
+                </Border>
+
+                <!-- An "apply this change?" question, in the conversation where it was asked. -->
+                <ContentControl Content="{Binding Approval}" IsVisible="{Binding IsApproval}" Margin="44,0,0,0">
+                  <ContentControl.ContentTemplate>
+                    <DataTemplate x:DataType="vm:ApprovalRequestViewModel">
+                      <local:ApprovalCard />
+                    </DataTemplate>
+                  </ContentControl.ContentTemplate>
+                </ContentControl>
+              </Panel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+
+      <!-- Where the next message is written. -->
+      <StackPanel Grid.Row="2" MaxWidth="880" Margin="32,4,32,12" Spacing="8"
+                  IsVisible="{Binding !Settings.IsOpen, FallbackValue=True}">
+        <Border Classes="card" CornerRadius="20" Padding="16,8,9,8">
+          <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" RowSpacing="2">
+            <TextBox x:Name="InputBox" Grid.Row="0" Grid.ColumnSpan="3" Classes="bare" Padding="0,6"
+                     IsEnabled="{Binding IsConnected}"
+                     Text="{Binding Input, Mode=TwoWay}"
+                     AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="140"
+                     PlaceholderText="Ask about ingredients, formulas or customers..." />
+
+            <!-- The mode of this session, always in view where the next message is written: read-only (off,
+                 green) or changes allowed (on, amber). Flipping it restarts the connection in the other mode
+                 and starts a new conversation. MainWindow.axaml.cs keeps the switch and the session in step.
+                 The hint is placed above the switch, never under the pointer, so it cannot cover the switch
+                 and swallow a click meant for it. -->
+            <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"
+                        HorizontalAlignment="Left"
+                        IsVisible="{Binding CanSwitchMode}"
+                        ToolTip.Placement="Top" ToolTip.VerticalOffset="-6"
+                        ToolTip.Tip="Off: the assistant can only read. On: it can propose changes, and each one still needs your approval. Switching starts a new conversation.">
+              <ToggleSwitch x:Name="ChangesToggle" OnContent="{x:Null}" OffContent="{x:Null}" MinWidth="0"
+                            VerticalAlignment="Center">
+                <ToggleSwitch.Resources>
+                  <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#E59A2F" />
+                  <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#D98D22" />
+                  <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#C98019" />
+                  <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="#E59A2F" />
+                  <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="#D98D22" />
+                  <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed" Color="#C98019" />
+                  <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="White" />
+                  <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="White" />
+                  <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="White" />
+                </ToggleSwitch.Resources>
+              </ToggleSwitch>
+              <Panel VerticalAlignment="Center">
+                <StackPanel x:Name="ReadOnlyLabel" Classes="modeLabel" Orientation="Horizontal" Spacing="5"
+                            IsVisible="{Binding !AllowChanges}">
+                  <ic:SymbolIcon Symbol="LockClosed" />
+                  <TextBlock Text="Read-only" />
+                </StackPanel>
+                <StackPanel x:Name="ChangesAllowedLabel" Classes="modeLabel writes" Orientation="Horizontal" Spacing="5"
+                            IsVisible="{Binding AllowChanges}">
+                  <ic:SymbolIcon Symbol="LockOpen" />
+                  <TextBlock Text="Changes allowed" />
+                </StackPanel>
+              </Panel>
+            </StackPanel>
+
+            <Button x:Name="StopButton" Grid.Row="1" Grid.Column="1" Content="Stop" Command="{Binding SendCancelCommand}"
+                    IsVisible="{Binding IsBusy}" VerticalAlignment="Center" FontSize="13" Padding="12,8" CornerRadius="19" />
+            <Button x:Name="SendButton" Grid.Row="1" Grid.Column="2" Classes="accent send" Command="{Binding SendCommand}"
+                    VerticalAlignment="Center" ToolTip.Tip="Send (Enter)">
+              <ic:SymbolIcon Symbol="Send" IconVariant="Filled" FontSize="17" />
+            </Button>
+          </Grid>
+        </Border>
+        <TextBlock Classes="muted" FontSize="11.5" HorizontalAlignment="Center"
+                   Text="Enter to send · Shift+Enter for a new line" />
+      </StackPanel>
+
+      <!-- The settings screen, laid over the conversation and the message box (the top bar stays visible). -->
+      <Border x:Name="SettingsOverlay" Grid.Row="1" Grid.RowSpan="2"
+              Background="{DynamicResource AppBg}"
+              IsVisible="{Binding Settings.IsOpen, FallbackValue=False}">
+        <ContentControl Content="{Binding Settings}">
+          <ContentControl.ContentTemplate>
+            <DataTemplate x:DataType="vm:SettingsViewModel">
+              <local:SettingsPanel />
+            </DataTemplate>
+          </ContentControl.ContentTemplate>
+        </ContentControl>
+      </Border>
+    </Grid>
+  </Grid>
+</Window>

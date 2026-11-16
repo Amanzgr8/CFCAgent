@@ -109,7 +109,8 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
             ConnectionStatus = "Not connected";
             Messages.Add(new ChatMessageViewModel(
                 ChatAuthor.Notice,
-                Settings is null ? $"Could not connect: {ex.Message}" : $"Could not connect: {ex.Message} Open Settings to check the connection."));
+                Settings is null ? $"Could not connect: {ex.Message}" : $"Could not connect: {ex.Message} Open Settings to check the connection.",
+                isError: true));
 
             // First run: there is nothing saved yet, so take the user straight to the place to enter it.
             if (Settings is { IsOpen: false } settings && settings.NeedsSetup())
@@ -305,7 +306,7 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
                 Messages.Remove(reply);
             }
 
-            Messages.Add(new ChatMessageViewModel(ChatAuthor.Notice, $"Something went wrong: {ex.Message}"));
+            Messages.Add(new ChatMessageViewModel(ChatAuthor.Notice, $"Something went wrong: {ex.Message}", isError: true));
         }
         finally
         {

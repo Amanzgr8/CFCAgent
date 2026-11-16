@@ -120,6 +120,7 @@ public class ConnectionWindowTests
         await viewModel.ConnectAsync(new RefusingConnector());
 
         Assert.Equal("Not connected", StatusLineText(window));
+        Assert.True(window.FindControl<Button>("RetryButton")!.IsEffectivelyVisible);
         Assert.False(window.FindControl<TextBox>("InputBox")!.IsEnabled);
         Assert.Contains("Run the CLI with --setup", viewModel.Messages.Single().Text);
         Capture(window, "chat-not-connected");

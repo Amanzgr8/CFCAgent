@@ -190,6 +190,30 @@ public class SettingsWindowTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task WhileSettingsIsOpen_TheModeSwitchIsNotOffered_AndChatInTheSidebarClosesIt()
+    {
+        (MainWindow window, ChatViewModel chat, SettingsViewModel settings) = OpenWindow(alreadySaved: true);
+        await chat.ConnectAsync(new FakeConnector(fail: false));
+        await PumpAsync(50);
+        Assert.True(Find<ToggleSwitch>(window, "ChangesToggle").IsEffectivelyVisible);
+
+        Click(window, Find<Button>(window, "SettingsButton"));
+        await PumpAsync(100);
+
+        // Switching mode or retrying restarts the connection, which must not happen behind the settings screen.
+        Assert.True(settings.IsOpen);
+        Assert.False(Find<ToggleSwitch>(window, "ChangesToggle").IsEffectivelyVisible);
+        Assert.False(Find<Button>(window, "RetryButton").IsEffectivelyVisible);
+
+        Click(window, Find<Button>(window, "ChatNavButton"));
+        await PumpAsync(50);
+
+        Assert.False(settings.IsOpen);
+        Assert.False(Find<Border>(window, "SettingsOverlay").IsVisible);
+        Assert.True(Find<ToggleSwitch>(window, "ChangesToggle").IsEffectivelyVisible);
+    }
+
+    [AvaloniaFact]
     public async Task TheConnectionStringBox_IsMasked_AndTypingReachesTheViewModel()
     {
         (MainWindow window, ChatViewModel chat, SettingsViewModel settings) = OpenWindow(alreadySaved: false);

@@ -222,7 +222,7 @@ public class ApprovalCardWindowTests
     }
 
     [AvaloniaFact]
-    public async Task TurningChangesOn_ShowsTheAmberBadgeAndTheBackToReadOnlyButton()
+    public async Task FlippingTheSwitchInTheMessageBox_TurnsChangesOnAndBackOff()
     {
         string folder = Path.Combine(Path.GetTempPath(), "cfcagent-badge-tests-" + Guid.NewGuid().ToString("N"));
         try
@@ -250,18 +250,50 @@ public class ApprovalCardWindowTests
             {
                 await viewModel.ConnectAsync(connectorForMode(false));
                 await PumpAsync(50);
-                Assert.Equal("READ-ONLY", window.FindControl<TextBlock>("ModeBadgeText")!.Text);
-                Assert.Equal("Allow changes", window.FindControl<Button>("ToggleChangesButton")!.Content);
-                Assert.DoesNotContain("writes", window.FindControl<Border>("ModeBadgeBorder")!.Classes);
+                ToggleSwitch toggle = window.FindControl<ToggleSwitch>("ChangesToggle")!;
+                StackPanel readOnlyLabel = window.FindControl<StackPanel>("ReadOnlyLabel")!;
+                StackPanel changesAllowedLabel = window.FindControl<StackPanel>("ChangesAllowedLabel")!;
+                Assert.True(toggle.IsEffectivelyVisible);
+                Assert.False(window.FindControl<Button>("RetryButton")!.IsEffectivelyVisible, "Retry is offered although the app is connected");
+                Assert.True(toggle.IsEnabled);
+                Assert.False(toggle.IsChecked);
+                Assert.True(readOnlyLabel.IsEffectivelyVisible);
+                Assert.False(changesAllowedLabel.IsEffectivelyVisible);
+                Capture(window, "chat-read-only");
 
-                await viewModel.ToggleChangesCommand.ExecuteAsync(null);
+                // A real click on the switch: the session restarts with changes allowed.
+                Click(window, toggle);
+                for (int i = 0; i < 300 && !(viewModel.AllowChanges && viewModel.IsConnected); i++)
+                {
+                    await PumpAsync(50);
+                }
+
                 await PumpAsync(50);
-
-                Assert.Equal("CHANGES ALLOWED", window.FindControl<TextBlock>("ModeBadgeText")!.Text);
-                Assert.Equal("Back to read-only", window.FindControl<Button>("ToggleChangesButton")!.Content);
-                Assert.Contains("writes", window.FindControl<Border>("ModeBadgeBorder")!.Classes);
+                Assert.True(viewModel.AllowChanges);
+                Assert.True(toggle.IsChecked);
+                Assert.False(readOnlyLabel.IsEffectivelyVisible);
+                Assert.True(changesAllowedLabel.IsEffectivelyVisible);
                 Assert.Contains("changes allowed (each one needs your approval)", window.FindControl<TextBlock>("StatusLine")!.Text);
                 Capture(window, "chat-changes-allowed");
+
+                // And a second click goes back to read-only.
+                Assert.True(viewModel.ToggleChangesCommand.CanExecute(null), "the mode cannot be switched back yet");
+                Assert.True(toggle.IsEnabled, "the switch is still disabled after the restart");
+                // The pointer has been resting on the switch, so its hint is showing. The hint must not sit
+                // on top of the switch, or this second click would land on the hint instead.
+                Click(window, toggle);
+                await PumpAsync(20);
+                Assert.False(toggle.IsChecked, "the click did not move the switch");
+                for (int i = 0; i < 300 && !(!viewModel.AllowChanges && viewModel.IsConnected); i++)
+                {
+                    await PumpAsync(50);
+                }
+
+                await PumpAsync(50);
+                Assert.False(viewModel.AllowChanges);
+                Assert.False(toggle.IsChecked);
+                Assert.True(readOnlyLabel.IsEffectivelyVisible);
+                Assert.Contains("read-only", window.FindControl<TextBlock>("StatusLine")!.Text);
             }
         }
         finally

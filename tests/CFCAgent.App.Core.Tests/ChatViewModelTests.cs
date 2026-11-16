@@ -119,6 +119,7 @@ public class ChatViewModelTests
         Assert.Equal(ChatAuthor.User, viewModel.Messages[0].Author);
         Assert.Equal(ChatAuthor.Notice, viewModel.Messages[1].Author);
         Assert.Contains("the model is unreachable", viewModel.Messages[1].Text);
+        Assert.True(viewModel.Messages[1].IsError);
         Assert.False(viewModel.IsBusy);
 
         viewModel.Input = "try again";

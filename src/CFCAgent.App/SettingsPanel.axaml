@@ -1,0 +1,76 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CFCAgent.App.Core"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="CFCAgent.App.SettingsPanel"
+             x:DataType="vm:SettingsViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.status">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Foreground" Value="{DynamicResource InkSoft}" />
+    </Style>
+    <Style Selector="TextBlock.status.error">
+      <Setter Property="Foreground" Value="{DynamicResource DangerInk}" />
+    </Style>
+    <Style Selector="TextBlock.hint">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Margin" Value="0,6,0,0" />
+      <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <Border Classes="card" MaxWidth="600" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="28,22,28,18">
+      <StackPanel Spacing="16">
+
+        <StackPanel Spacing="2">
+          <TextBlock Classes="h2" Text="Connection" />
+          <TextBlock Classes="muted" Text="This install's connection to the CFC database." TextWrapping="Wrap" />
+        </StackPanel>
+
+        <StackPanel>
+          <TextBlock Classes="field" Text="Tenant name" />
+          <TextBox x:Name="TenantBox" Text="{Binding TenantName, Mode=TwoWay}" />
+        </StackPanel>
+
+        <StackPanel>
+          <TextBlock Classes="field" Text="Product config (optional)" />
+          <TextBox x:Name="ProductConfigBox" Text="{Binding ProductConfigPath, Mode=TwoWay}"
+                   PlaceholderText="{Binding DefaultProductConfigPath}" />
+          <TextBlock Classes="hint" Text="Leave blank to use the product's default config." />
+        </StackPanel>
+
+        <StackPanel>
+          <TextBlock Classes="field" Text="Database connection string" />
+          <!-- Masked: the dots hide what is typed or pasted. It is never filled in from what is saved. -->
+          <TextBox x:Name="SecretBox" PasswordChar="•" Text="{Binding ConnectionString, Mode=TwoWay}"
+                   PlaceholderText="{Binding SecretHint}">
+            <TextBox.InnerRightContent>
+              <ic:SymbolIcon Symbol="LockClosed" FontSize="15" Margin="0,0,10,0" Foreground="{DynamicResource InkMuted}"
+                             VerticalAlignment="Center" />
+            </TextBox.InnerRightContent>
+          </TextBox>
+          <TextBlock Classes="hint" TextWrapping="Wrap">
+            <Run Text="Saved in " /><Run Text="{Binding StoreName}" /><Run Text=", never in a file, and not shown again after you save." />
+          </TextBlock>
+        </StackPanel>
+
+        <TextBlock x:Name="StatusText" Classes="status" Classes.error="{Binding StatusIsError}"
+                   Text="{Binding StatusMessage}" TextWrapping="Wrap" MinHeight="20" />
+
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button x:Name="SaveButton" Classes="accent" Content="Save" Command="{Binding SaveCommand}"
+                  MinWidth="80" HorizontalContentAlignment="Center" Padding="16,8" FontWeight="SemiBold" />
+          <Button x:Name="TestButton" Content="Test connection" Command="{Binding TestConnectionCommand}" Padding="16,8" />
+          <Button x:Name="CancelTestButton" Content="Cancel test" Command="{Binding TestConnectionCancelCommand}"
+                  IsVisible="{Binding IsBusy}" Padding="16,8" />
+          <Button x:Name="CloseButton" Content="Close" Command="{Binding CloseCommand}" Padding="16,8" />
+        </StackPanel>
+
+        <TextBlock Classes="hint" Margin="0" TextWrapping="Wrap"
+                   Text="Saving reconnects the app in read-only mode and starts a new conversation." />
+      </StackPanel>
+    </Border>
+  </ScrollViewer>
+</UserControl>

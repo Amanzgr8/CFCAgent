@@ -118,6 +118,7 @@ public class ApprovalAndModeTests : IDisposable
         Assert.Equal(ChatAuthor.Notice, notice.Author);
         Assert.Contains("new conversation", notice.Text);
         Assert.Contains("approve", notice.Text);
+        Assert.False(notice.IsError, "a change of mode is information, not a failure");
     }
 
     [Fact]

@@ -82,6 +82,7 @@ public class ConnectionTests
         ChatMessageViewModel notice = Assert.Single(viewModel.Messages);
         Assert.Equal(ChatAuthor.Notice, notice.Author);
         Assert.Contains("the database password was rejected", notice.Text);
+        Assert.True(notice.IsError);
     }
 
     [Fact]
