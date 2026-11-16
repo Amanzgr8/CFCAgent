@@ -36,6 +36,10 @@ public partial class App : Application
                 });
                 viewModel.EnableModeSwitch(connectorForMode);
 
+                // Finished chats are kept in a SQLite file in the user's own profile, so they can be reopened
+                // later. If that file cannot be used the chat still works, and a notice says so.
+                viewModel.AttachHistory(new ConversationStore(ConversationStore.DefaultPath));
+
                 // The settings screen: the same tenant setup and credential store the CLI's --setup uses.
                 string defaultProductConfig = LocalBackendLocations.DefaultProductConfigPath();
                 viewModel.AttachSettings(new SettingsViewModel(

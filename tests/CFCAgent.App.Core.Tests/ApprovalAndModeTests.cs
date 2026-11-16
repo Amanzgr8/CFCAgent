@@ -25,13 +25,15 @@ public class ApprovalAndModeTests : IDisposable
         private readonly Action<bool> _onConnect;
         private readonly Func<ValueTask> _onDispose;
         private readonly Func<bool> _fail;
+        private readonly Action<ChatSession> _onSession;
 
-        public ModeConnector(bool allowChanges, Action<bool> onConnect, Func<ValueTask> onDispose, Func<bool> fail)
+        public ModeConnector(bool allowChanges, Action<bool> onConnect, Func<ValueTask> onDispose, Func<bool> fail, Action<ChatSession> onSession)
         {
             _allowChanges = allowChanges;
             _onConnect = onConnect;
             _onDispose = onDispose;
             _fail = fail;
+            _onSession = onSession;
         }
 
         public Task<ChatConnection> ConnectAsync(CancellationToken cancellationToken)
@@ -42,7 +44,12 @@ public class ApprovalAndModeTests : IDisposable
                 throw new InvalidOperationException("the server would not start");
             }
 
-            ChatSession session = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), null);
+            // Each mode has its own system prompt, as the real connector's sessions do.
+            ChatSession session = new ChatSession(
+                new StubChatClient(),
+                Array.Empty<AITool>(),
+                _allowChanges ? "system prompt: changes allowed" : "system prompt: read-only");
+            _onSession(session);
             string description = _allowChanges ? "changes allowed" : "read-only";
             return Task.FromResult(new ChatConnection(session, description, Array.Empty<AITool>(), new ServerLogBuffer(), _onDispose));
         }
@@ -56,6 +63,9 @@ public class ApprovalAndModeTests : IDisposable
 
         public bool FailNextWriteConnect { get; set; }
 
+        // Every session a connection produced, oldest first.
+        public List<ChatSession> Sessions { get; } = new List<ChatSession>();
+
         public Func<bool, IChatConnector> Factory =>
             allowChanges => new ModeConnector(
                 allowChanges,
@@ -65,7 +75,14 @@ public class ApprovalAndModeTests : IDisposable
                     Disposed++;
                     return ValueTask.CompletedTask;
                 },
-                fail: () => allowChanges && FailNextWriteConnect);
+                fail: () => allowChanges && FailNextWriteConnect,
+                onSession: Sessions.Add);
+    }
+
+    // What a session would send to the model, as "role: text" lines.
+    private static List<string> Turns(ChatSession session)
+    {
+        return session.History.Select(message => message.Role.Value + ": " + message.Text).ToList();
     }
 
     private static async Task<(ChatViewModel ViewModel, ModeLog Log)> ConnectedReadOnlyAsync()
@@ -97,7 +114,7 @@ public class ApprovalAndModeTests : IDisposable
     }
 
     [Fact]
-    public async Task TurningChangesOn_ReconnectsInTheOtherModeAndStartsFresh()
+    public async Task TurningChangesOn_ReconnectsInTheOtherModeAndKeepsTheConversation()
     {
         (ChatViewModel viewModel, ModeLog log) = await ConnectedReadOnlyAsync();
         viewModel.Input = "hello";
@@ -114,17 +131,51 @@ public class ApprovalAndModeTests : IDisposable
         Assert.Equal("changes allowed", viewModel.ConnectionStatus);
         Assert.True(viewModel.IsConnected);
 
-        ChatMessageViewModel notice = Assert.Single(viewModel.Messages);
+        // On screen: the earlier question and reply are still there, with the notice after them.
+        Assert.Equal(3, viewModel.Messages.Count);
+        Assert.Equal("hello", viewModel.Messages[0].Text);
+        Assert.Equal(ChatAuthor.Assistant, viewModel.Messages[1].Author);
+        ChatMessageViewModel notice = viewModel.Messages[2];
         Assert.Equal(ChatAuthor.Notice, notice.Author);
-        Assert.Contains("new conversation", notice.Text);
+        Assert.DoesNotContain("new conversation", notice.Text);
         Assert.Contains("approve", notice.Text);
         Assert.False(notice.IsError, "a change of mode is information, not a failure");
+
+        // For the model: the new session has the new mode's system prompt, the earlier turns, and a note
+        // saying what changed.
+        List<string> turns = Turns(log.Sessions[1]);
+        Assert.Equal(4, turns.Count);
+        Assert.Equal("system: system prompt: changes allowed", turns[0]);
+        Assert.Equal("user: hello", turns[1]);
+        Assert.StartsWith("assistant: ", turns[2]);
+        Assert.StartsWith("user: " + ChatSession.AppNotePrefix, turns[3]);
+        Assert.Contains("changes allowed", turns[3]);
     }
 
     [Fact]
-    public async Task TurningChangesBackOff_ReturnsToReadOnly()
+    public async Task AfterASwitch_TheNextQuestionIsAskedInTheSameConversation()
     {
         (ChatViewModel viewModel, ModeLog log) = await ConnectedReadOnlyAsync();
+        viewModel.Input = "what does D066 cost?";
+        await viewModel.SendCommand.ExecuteAsync(null);
+        await viewModel.ToggleChangesCommand.ExecuteAsync(null);
+
+        viewModel.Input = "now set it to 0.43";
+        await viewModel.SendCommand.ExecuteAsync(null);
+
+        List<string> turns = Turns(log.Sessions[1]);
+        Assert.Equal("user: what does D066 cost?", turns[1]);
+        Assert.Equal("user: now set it to 0.43", turns[4]);
+        Assert.StartsWith("assistant: ", turns[5]);
+        Assert.Equal(5, viewModel.Messages.Count);
+    }
+
+    [Fact]
+    public async Task TurningChangesBackOff_ReturnsToReadOnlyAndStillKeepsTheConversation()
+    {
+        (ChatViewModel viewModel, ModeLog log) = await ConnectedReadOnlyAsync();
+        viewModel.Input = "hello";
+        await viewModel.SendCommand.ExecuteAsync(null);
         await viewModel.ToggleChangesCommand.ExecuteAsync(null);
 
         await viewModel.ToggleChangesCommand.ExecuteAsync(null);
@@ -133,13 +184,35 @@ public class ApprovalAndModeTests : IDisposable
         Assert.Equal("READ-ONLY", viewModel.ModeBadge);
         Assert.Equal(new[] { false, true, false }, log.Connected);
         Assert.Equal(2, log.Disposed);
-        Assert.Contains("read-only", Assert.Single(viewModel.Messages).Text);
+        Assert.Equal(4, viewModel.Messages.Count);
+        Assert.Contains("read-only", viewModel.Messages[3].Text);
+
+        // Nothing was said between the two switches, so only the newest note is kept for the model.
+        List<string> turns = Turns(log.Sessions[2]);
+        Assert.Equal(4, turns.Count);
+        Assert.Equal("system: system prompt: read-only", turns[0]);
+        Assert.Equal("user: hello", turns[1]);
+        Assert.Contains("read-only mode", turns[3]);
+        Assert.DoesNotContain(turns, turn => turn.Contains("with changes allowed"));
     }
 
     [Fact]
-    public async Task IfTheWritableConnectionFails_TheAppIsNotConnectedAndRetryWorks()
+    public async Task ASwitchBeforeAnythingWasSaid_LeavesTheNewSessionWithOnlyItsSystemPrompt()
     {
         (ChatViewModel viewModel, ModeLog log) = await ConnectedReadOnlyAsync();
+
+        await viewModel.ToggleChangesCommand.ExecuteAsync(null);
+
+        Assert.Equal(new[] { "system: system prompt: changes allowed" }, Turns(log.Sessions[1]));
+        Assert.Contains("approve", Assert.Single(viewModel.Messages).Text);
+    }
+
+    [Fact]
+    public async Task IfTheWritableConnectionFails_TheAppIsNotConnected_AndRetryCarriesOnTheConversation()
+    {
+        (ChatViewModel viewModel, ModeLog log) = await ConnectedReadOnlyAsync();
+        viewModel.Input = "hello";
+        await viewModel.SendCommand.ExecuteAsync(null);
         log.FailNextWriteConnect = true;
 
         await viewModel.ToggleChangesCommand.ExecuteAsync(null);
@@ -147,12 +220,16 @@ public class ApprovalAndModeTests : IDisposable
         Assert.False(viewModel.IsConnected);
         Assert.Contains(viewModel.Messages, m => m.Text.Contains("the server would not start"));
         Assert.False(viewModel.SendCommand.CanExecute(null));
+        Assert.Equal("hello", viewModel.Messages[0].Text);
 
         log.FailNextWriteConnect = false;
         await viewModel.RetryConnectionCommand.ExecuteAsync(null);
 
         Assert.True(viewModel.IsConnected);
         Assert.Equal("changes allowed", viewModel.ConnectionStatus);
+        List<string> turns = Turns(log.Sessions[^1]);
+        Assert.Equal("user: hello", turns[1]);
+        Assert.Contains("changes allowed", turns[^1]);
     }
 
     [Fact]

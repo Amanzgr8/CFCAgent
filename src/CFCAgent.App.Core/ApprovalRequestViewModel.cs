@@ -45,6 +45,15 @@ public sealed partial class ApprovalRequestViewModel : ObservableObject
         Message = message;
     }
 
+    // A question from a saved conversation, shown again as a record of how it ended. It can no longer be
+    // answered. One that was somehow saved unanswered counts as withdrawn: nothing was changed.
+    public static ApprovalRequestViewModel Answered(string message, ApprovalState state)
+    {
+        ApprovalRequestViewModel request = new ApprovalRequestViewModel(message);
+        request.Decide(state == ApprovalState.Pending ? ApprovalState.Withdrawn : state);
+        return request;
+    }
+
     // The exact preview the server produced. Shown as it is; the app does not reword it.
     public string Message { get; }
 

@@ -135,7 +135,7 @@ public sealed class LocalBackendConnector : IChatConnector
 
             string description = $"{resolved.Source} · {toolNote} · {modelNote}";
 
-            return new ChatConnection(session, description, tools, log, host.DisposeAsync);
+            return new ChatConnection(session, description, tools, log, host.DisposeAsync) { Source = resolved.Source };
         }
         catch
         {

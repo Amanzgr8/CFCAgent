@@ -9,7 +9,8 @@ namespace CFCAgent.App.Core;
 // Everything the chat window does, with no UI in it: the list of messages, the text being typed, and
 // the Send and Stop commands. Sending shows the user's message at once, then fills an assistant
 // message piece by piece as the reply streams in. Stop cancels the reply being received. A failure
-// is shown as a notice in the conversation instead of crashing the app.
+// is shown as a notice in the conversation instead of crashing the app. Starting a new chat and reopening
+// saved ones is in ChatViewModel.History.cs.
 public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
 {
     private ChatSession? _session;
@@ -24,6 +25,9 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleChangesCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenSettingsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(NewChatCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenChatCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteChatCommand))]
     private bool _isBusy;
 
     // Sending is only possible once a backend is connected.
@@ -36,6 +40,9 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
     [NotifyCanExecuteChangedFor(nameof(RetryConnectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleChangesCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenSettingsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(NewChatCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenChatCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteChatCommand))]
     private bool _isConnecting;
 
     // Whether this session may change data. Always false at startup: every launch is read-only until the
@@ -54,6 +61,23 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
     // Set when a card has been added: text that arrives after it starts a new reply bubble below the card,
     // so the conversation reads in the order things happened (text, question, answer, more text).
     private bool _startNewReplyBubble;
+
+    // The conversation so far, waiting to be handed to the next session that connects. Set when the mode is
+    // switched (the server restarts, the conversation carries on), or when a saved chat is reopened while
+    // nothing is connected. Kept until a connection succeeds, so a failed reconnect followed by Retry still
+    // continues the same conversation.
+    private List<ChatMessage>? _carriedTurns;
+    private string? _carriedNote;
+
+    // What the model is told after a switch, so it does not go on believing what it said in the other mode.
+    private const string ChangesAllowedNote =
+        "The app restarted this session with changes allowed. The tools that change data are available now. " +
+        "Each change still needs the user's approval on an approval card. The conversation above carries on.";
+
+    private const string ReadOnlyNote =
+        "The app restarted this session in read-only mode. The tools that change data are no longer available, " +
+        "so nothing can be changed until the user allows changes again. Changes that were applied earlier in " +
+        "this conversation stay applied. The conversation above carries on.";
 
     // One line about the connection, shown in the window: what it is connected to, or why it is not.
     [ObservableProperty]
@@ -97,6 +121,15 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
             ChatConnection connection = await connector.ConnectAsync(cancellationToken);
             _connection = connection;
             _session = connection.Session;
+            _connectedSource = connection.Source;
+            if (_carriedTurns is not null)
+            {
+                // The new session carries on the conversation that was waiting for it.
+                _session.ContinueFrom(_carriedTurns, _carriedNote);
+                _carriedTurns = null;
+                _carriedNote = null;
+            }
+
             ConnectionStatus = connection.Description;
             IsConnected = true;
         }
@@ -147,7 +180,8 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
 
     // Switches the session between read-only and changes-allowed. The tool list and the confirmation
     // handshake are fixed when a session connects, so this ends the current server process and starts a
-    // fresh connection and a fresh conversation (the model would otherwise remember the old mode's tools).
+    // fresh connection. The conversation is kept: the new session takes over every earlier turn, and the
+    // model is told that the mode changed.
     [RelayCommand(CanExecute = nameof(CanToggleChanges))]
     private Task ToggleChangesAsync()
     {
@@ -155,23 +189,44 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
         return RestartAsync(
             target,
             target
-                ? "Changes are now allowed. The assistant can propose a change, and nothing is applied unless you approve it on the approval card. This started a new conversation."
-                : "Back to read-only. The assistant can no longer change anything. This started a new conversation.");
+                ? "Changes are now allowed. The assistant can propose a change, and nothing is applied unless you approve it on the approval card."
+                : "Back to read-only. The assistant can no longer change anything.",
+            keepConversation: true,
+            noteForModel: target ? ChangesAllowedNote : ReadOnlyNote);
     }
 
-    // Ends the current connection and starts a fresh one (and a fresh conversation) in the given mode.
-    private async Task RestartAsync(bool allowChanges, string notice)
+    // Ends the current connection and starts a fresh one in the given mode, either carrying the conversation
+    // over to it or starting a new conversation.
+    private async Task RestartAsync(bool allowChanges, string notice, bool keepConversation, string? noteForModel = null)
     {
         IChatConnector connector = _connectorForMode!(allowChanges);
 
+        // The turns so far come from the live session, or are still waiting from an earlier switch whose
+        // connection failed.
+        List<ChatMessage>? turns = keepConversation ? (_session?.History.ToList() ?? _carriedTurns) : null;
+
         await DisposeAsync();
         _session = null;
+        _connectedSource = null;
         IsConnected = false;
-        Messages.Clear();
+        if (!keepConversation)
+        {
+            // The conversation that was open stays in the recent chats; what follows is a new one.
+            Messages.Clear();
+            StartUnsavedConversation();
+        }
+
+        _carriedTurns = turns;
+        _carriedNote = keepConversation ? noteForModel : null;
         AllowChanges = allowChanges;
         Messages.Add(new ChatMessageViewModel(ChatAuthor.Notice, notice));
 
         await ConnectAsync(connector);
+        if (keepConversation)
+        {
+            // So the notice about the switch is part of the saved chat too.
+            SaveConversation();
+        }
     }
 
     // ---- Settings ----
@@ -202,7 +257,8 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
     }
 
     // New settings may point at a different database, so the connection is rebuilt in read-only mode, whatever
-    // the mode was before. Changes have to be allowed again, on purpose, for the new database.
+    // the mode was before. Changes have to be allowed again, on purpose, for the new database. The conversation
+    // is not kept either: what was said about the old database would be misleading for the new one.
     private async Task ReconnectAfterSettingsAsync()
     {
         if (_connectorForMode is null)
@@ -210,7 +266,10 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        await RestartAsync(false, "Settings saved. Reconnecting in read-only mode. This started a new conversation.");
+        await RestartAsync(
+            false,
+            "Settings saved. Reconnecting in read-only mode. This started a new conversation.",
+            keepConversation: false);
     }
 
     private bool CanRetryConnection()
@@ -319,6 +378,7 @@ public sealed partial class ChatViewModel : ObservableObject, IAsyncDisposable
             }
 
             IsBusy = false;
+            SaveConversation();
         }
     }
 }

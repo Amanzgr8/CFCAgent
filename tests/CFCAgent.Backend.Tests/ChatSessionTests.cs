@@ -136,4 +136,117 @@ public class ChatSessionTests
         Assert.Equal("the model is unavailable", failure.Message);
         Assert.Single(session.History);
     }
+
+    // ---- Taking over an earlier conversation ----
+
+    [Fact]
+    public async Task ContinueFrom_KeepsTheEarlierTurns_ButThisSessionsOwnSystemPrompt()
+    {
+        ChatSession earlier = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), "read-only prompt");
+        await ReplyAsync(earlier, "what does D066 cost?");
+        ChatSession next = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), "changes-allowed prompt");
+
+        next.ContinueFrom(earlier.History, "changes are now allowed");
+
+        Assert.Equal(4, next.History.Count);
+        Assert.Equal(ChatRole.System, next.History[0].Role);
+        Assert.Equal("changes-allowed prompt", next.History[0].Text);
+        Assert.Equal("what does D066 cost?", next.History[1].Text);
+        Assert.Equal(ChatRole.Assistant, next.History[2].Role);
+        Assert.Equal(ChatRole.User, next.History[3].Role);
+        Assert.Equal(ChatSession.AppNotePrefix + "changes are now allowed", next.History[3].Text);
+        Assert.DoesNotContain(next.History, message => message.Text == "read-only prompt");
+    }
+
+    [Fact]
+    public async Task ContinueFrom_ThenSending_CarriesOnTheSameConversation()
+    {
+        ChatSession earlier = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), "first prompt");
+        await ReplyAsync(earlier, "first question");
+        ChatSession next = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), "second prompt");
+        next.ContinueFrom(earlier.History, "the mode changed");
+
+        string reply = await ReplyAsync(next, "second question");
+
+        Assert.Contains("second question", reply);
+        Assert.Equal(6, next.History.Count);
+        Assert.Equal("first question", next.History[1].Text);
+        Assert.Equal("second question", next.History[4].Text);
+    }
+
+    [Fact]
+    public void ContinueFrom_WithNoEarlierTurns_AddsNothing()
+    {
+        ChatSession earlier = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), "first prompt");
+        ChatSession next = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), "second prompt");
+
+        next.ContinueFrom(earlier.History, "the mode changed");
+
+        // Nothing was said yet, so there is nothing to explain: the system prompt already describes the session.
+        ChatMessage only = Assert.Single(next.History);
+        Assert.Equal("second prompt", only.Text);
+    }
+
+    [Fact]
+    public async Task ContinueFrom_DropsANoteThatNoTurnFollowed_SoOnlyTheNewestNoteIsKept()
+    {
+        ChatSession first = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), null);
+        await ReplyAsync(first, "hello");
+        ChatSession second = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), null);
+        second.ContinueFrom(first.History, "changes are now allowed");
+        ChatSession third = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), null);
+
+        third.ContinueFrom(second.History, "back to read-only");
+
+        Assert.Equal(3, third.History.Count);
+        Assert.Equal("hello", third.History[0].Text);
+        Assert.Equal(ChatSession.AppNotePrefix + "back to read-only", third.History[2].Text);
+    }
+
+    [Fact]
+    public async Task ContinueFrom_AfterAMessageWasSent_IsRefused()
+    {
+        ChatSession earlier = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), null);
+        await ReplyAsync(earlier, "an earlier question");
+        ChatSession next = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), "system text");
+        await ReplyAsync(next, "already talking");
+
+        Assert.Throws<InvalidOperationException>(() => next.ContinueFrom(earlier.History));
+        Assert.Equal(3, next.History.Count);
+    }
+
+    [Fact]
+    public async Task Clear_ForgetsTheTurns_AndKeepsTheSystemPrompt()
+    {
+        ChatSession session = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), "the prompt");
+        await ReplyAsync(session, "what does D066 cost?");
+
+        session.Clear();
+
+        ChatMessage only = Assert.Single(session.History);
+        Assert.Equal(ChatRole.System, only.Role);
+        Assert.Equal("the prompt", only.Text);
+
+        // The next question starts from nothing: the model is not sent the earlier one.
+        await ReplyAsync(session, "list the binders");
+        Assert.Equal(3, session.History.Count);
+        Assert.DoesNotContain(session.History, message => message.Text.Contains("D066"));
+    }
+
+    [Fact]
+    public async Task Clear_MakesRoomToTakeOverAnotherConversation()
+    {
+        ChatSession saved = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), null);
+        await ReplyAsync(saved, "an earlier chat");
+        ChatSession session = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), "the prompt");
+        await ReplyAsync(session, "the chat that was open");
+
+        session.Clear();
+        session.ContinueFrom(saved.History, "this chat was reopened");
+
+        Assert.Equal(4, session.History.Count);
+        Assert.Equal("the prompt", session.History[0].Text);
+        Assert.Equal("an earlier chat", session.History[1].Text);
+        Assert.Equal(ChatSession.AppNotePrefix + "this chat was reopened", session.History[3].Text);
+    }
 }

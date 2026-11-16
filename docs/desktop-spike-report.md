@@ -34,11 +34,40 @@ out because nothing behind them exists yet; the showcase stays in `spikes/` as t
 The read-only / changes-allowed mode is now one switch inside the message box (off and green for read-only, on and
 amber when changes are allowed). It replaces the badge and the separate button the spike had in its footer.
 
+Flipping the switch still restarts the server and reconnects, because the tool list and the approval handshake
+are fixed when a session connects. Since 2026-11-15 it keeps the conversation: the new session takes over every
+earlier turn, uses the new mode's system prompt, and gets a short note for the model saying what changed. In the
+spike a switch cleared the chat. Saving settings still starts a new conversation, because new settings can point
+at a different database. Not yet tried with Claude itself (it needs an API key): in particular, going back to
+read-only leaves earlier change-tool calls in the history while those tools are no longer offered.
+
 Two of the loose ends were fixed in that step: a notice is now shown as information unless it reports a failure,
 and the mode switch and Retry are not offered while Settings is open. Audit lines and the tool-call display are still
 not shown. Measured after the restyle (Release, four runs, same machine): window in about 0.9 s, connected in about
 1.6 s, 220 MB in use (104 MB private). That is about 0.2 s and 48 MB more than the spike's plain screens, numbers
 below.
+
+**New chat and recent chats, added 2026-11-15.** The sidebar has a New chat button and a list of recent chats.
+New chat starts an empty conversation on the same connection; the server is not restarted. Every chat is saved
+when a reply ends, to a SQLite file in the user's own profile (`%LOCALAPPDATA%\CFCAgent\conversations.db`),
+not to the fertilizer database, so read-only mode still writes nothing there. A saved chat can be reopened, also
+after the app was closed. Each one is kept in two forms, because they differ: what the window showed (notices,
+approval records and stopped replies included) and what the model is sent (tool calls and their results
+included). On reopening, the model gets the saved turns plus a note that time has passed, which mode the session
+is in, and that figures should be looked up again. Deleting a chat takes two clicks.
+
+Things to know about it:
+
+* The file is not encrypted. It is as private as the user's other files. It holds what was asked and the data
+  the replies and tool results showed (costs, customer names), but never a connection string.
+* A chat reopened while connected to a different tenant setup says so, to the user and to the model.
+* Tested on the stub model, and with a real tool result from the server going through the file unchanged. Not
+  yet tried with Claude itself.
+* Not built: searching chats, renaming them, and removing old ones automatically. The list shows the 50 most
+  recent.
+* It adds one package, Microsoft.Data.Sqlite (MIT), which brings SQLitePCLRaw (Apache-2.0) and SQLite itself
+  (public domain). These are not in the licence count further down, which describes the spike as it ended.
+* Startup and memory did not change (window in about 0.9 s, connected in about 1.6 s, 224 MB in use).
 
 ## Verdict
 

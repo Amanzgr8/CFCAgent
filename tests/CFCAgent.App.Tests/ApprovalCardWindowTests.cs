@@ -261,7 +261,13 @@ public class ApprovalCardWindowTests
                 Assert.False(changesAllowedLabel.IsEffectivelyVisible);
                 Capture(window, "chat-read-only");
 
-                // A real click on the switch: the session restarts with changes allowed.
+                // Something is said first, so there is a conversation to keep.
+                viewModel.Input = "What does D066 cost?";
+                await viewModel.SendCommand.ExecuteAsync(null);
+                await PumpAsync(50);
+                Assert.Equal(2, viewModel.Messages.Count);
+
+                // A real click on the switch: the server restarts with changes allowed.
                 Click(window, toggle);
                 for (int i = 0; i < 300 && !(viewModel.AllowChanges && viewModel.IsConnected); i++)
                 {
@@ -274,6 +280,16 @@ public class ApprovalCardWindowTests
                 Assert.False(readOnlyLabel.IsEffectivelyVisible);
                 Assert.True(changesAllowedLabel.IsEffectivelyVisible);
                 Assert.Contains("changes allowed (each one needs your approval)", window.FindControl<TextBlock>("StatusLine")!.Text);
+
+                // The conversation is still on screen, with the notice after it, and it carries on.
+                Assert.Equal(3, viewModel.Messages.Count);
+                Assert.Equal("What does D066 cost?", viewModel.Messages[0].Text);
+                Assert.Contains("Changes are now allowed", viewModel.Messages[2].Text);
+                viewModel.Input = "Now set it to 0.43";
+                await viewModel.SendCommand.ExecuteAsync(null);
+                await PumpAsync(100);
+                Assert.Equal(5, viewModel.Messages.Count);
+                Assert.Contains("Now set it to 0.43", viewModel.Messages[4].Text);
                 Capture(window, "chat-changes-allowed");
 
                 // And a second click goes back to read-only.
@@ -294,6 +310,8 @@ public class ApprovalCardWindowTests
                 Assert.False(toggle.IsChecked);
                 Assert.True(readOnlyLabel.IsEffectivelyVisible);
                 Assert.Contains("read-only", window.FindControl<TextBlock>("StatusLine")!.Text);
+                Assert.Equal(6, viewModel.Messages.Count);
+                Assert.Contains("Back to read-only", viewModel.Messages[5].Text);
             }
         }
         finally

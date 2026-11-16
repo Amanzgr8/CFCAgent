@@ -101,6 +101,46 @@ public class LocalBackendConnectorTests : IDisposable
     }
 
     [Fact]
+    public async Task ARealToolResult_ComesBackTheSame_AfterTheChatIsSavedAndLoaded()
+    {
+        // The saved chat has to hold whatever the real server's tools return, in the shape the model is sent.
+        // The documentation search needs no database, so its real result is used here.
+        LocalBackendOptions options = SetUpTenant(readOnly: true, out InMemoryCredentials _);
+        await using ChatConnection connection = await new LocalBackendConnector(options).ConnectAsync(CancellationToken.None);
+        AIFunction search = connection.Tools.OfType<AIFunction>().Single(tool => tool.Name == "search_docs");
+        Dictionary<string, object?> arguments = new Dictionary<string, object?> { ["query"] = "binding agent" };
+        object? result = await search.InvokeAsync(new AIFunctionArguments(arguments));
+        Assert.NotNull(result);
+        List<ChatMessage> turns = new List<ChatMessage>
+        {
+            new ChatMessage(ChatRole.User, "what is a binding agent?"),
+            new ChatMessage(ChatRole.Assistant, new List<AIContent> { new FunctionCallContent("call_1", "search_docs", arguments) }),
+            new ChatMessage(ChatRole.Tool, new List<AIContent> { new FunctionResultContent("call_1", result) }),
+            new ChatMessage(ChatRole.Assistant, "A binding agent holds a blend together."),
+        };
+        ConversationStore store = new ConversationStore(Path.Combine(_folder, "conversations.db"));
+
+        store.Save(new SavedConversation
+        {
+            Id = "c1",
+            Title = "what is a binding agent?",
+            CreatedUtc = DateTimeOffset.UtcNow,
+            UpdatedUtc = DateTimeOffset.UtcNow,
+            Turns = turns,
+            Transcript = new List<TranscriptEntry>(),
+        });
+        SavedConversation? loaded = store.Load("c1");
+
+        // Written out again, the loaded turns are the same text as the original ones: nothing was lost or
+        // reshaped on the way through the file.
+        Assert.NotNull(loaded);
+        string before = System.Text.Json.JsonSerializer.Serialize(turns, AIJsonUtilities.DefaultOptions);
+        string after = System.Text.Json.JsonSerializer.Serialize(loaded.Turns.ToList(), AIJsonUtilities.DefaultOptions);
+        Assert.Equal(before, after);
+        Assert.Contains("binding", after, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task MissingServer_ExplainsWhatToDo()
     {
         LocalBackendOptions options = new LocalBackendOptions { ServerDllPath = Path.Combine(_folder, "nope", "CFCAgent.McpServer.dll") };

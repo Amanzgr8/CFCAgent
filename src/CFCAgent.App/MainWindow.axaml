@@ -70,6 +70,52 @@
       <Setter Property="Foreground" Value="{DynamicResource WarnInk}" />
     </Style>
 
+    <!-- New chat: an outlined button at the top of the sidebar. -->
+    <Style Selector="Button.newChat">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="#14FFFFFF" />
+      <Setter Property="BorderBrush" Value="#33FFFFFF" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="10,9" />
+      <Setter Property="FontSize" Value="13.5" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    </Style>
+    <Style Selector="Button.newChat:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#24FFFFFF" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Tan}" />
+      <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    </Style>
+
+    <!-- A saved chat in the sidebar. Its delete button shows only while the pointer is on the row or the
+         button has the keyboard focus, so the list stays quiet. -->
+    <Style Selector="Button.deleteChat">
+      <Setter Property="Opacity" Value="0" />
+      <Setter Property="Padding" Value="6" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="Margin" Value="0,0,3,0" />
+    </Style>
+    <Style Selector="Panel.recentRow:pointerover Button.deleteChat">
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button.deleteChat:focus-visible">
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Border.confirmDelete">
+      <Setter Property="Background" Value="{DynamicResource DangerSoft}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DangerLine}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="Padding" Value="10,5,5,5" />
+    </Style>
+    <Style Selector="Border.confirmDelete Button">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="9,4" />
+      <Setter Property="CornerRadius" Value="7" />
+    </Style>
+
     <!-- The connection dot in the sidebar: grey until connected, then green. -->
     <Style Selector="Ellipse.dot">
       <Setter Property="Width" Value="8" />
@@ -127,7 +173,27 @@
             </StackPanel>
           </Border>
 
+          <!-- Settings sits at the bottom of the sidebar, just above the connection status. It is docked after
+               the status so that it lands above it. -->
+          <Button x:Name="SettingsButton" DockPanel.Dock="Bottom" Classes="nav" Margin="0,0,0,8"
+                  Command="{Binding OpenSettingsCommand}"
+                  IsVisible="{Binding HasSettings}"
+                  Classes.selected="{Binding Settings.IsOpen, FallbackValue=False}">
+            <StackPanel Orientation="Horizontal" Spacing="11">
+              <ic:SymbolIcon Classes="navicon" Symbol="Settings" FontSize="18" VerticalAlignment="Center" />
+              <TextBlock Text="Settings" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+
           <StackPanel DockPanel.Dock="Top" Spacing="2">
+            <!-- Starts an empty conversation on the same connection. The one that was open stays under Recent. -->
+            <Button x:Name="NewChatButton" Classes="newChat" Command="{Binding NewChatCommand}" Margin="0,0,0,10">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ic:SymbolIcon Symbol="Add" FontSize="16" VerticalAlignment="Center" />
+                <TextBlock Text="New chat" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+
             <!-- Chat is the page behind Settings: choosing it closes the settings screen. -->
             <Button x:Name="ChatNavButton" Classes="nav"
                     Classes.selected="{Binding !Settings.IsOpen, FallbackValue=True}">
@@ -136,15 +202,60 @@
                 <TextBlock Text="Chat" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
-            <Button x:Name="SettingsButton" Classes="nav" Command="{Binding OpenSettingsCommand}"
-                    IsVisible="{Binding HasSettings}"
-                    Classes.selected="{Binding Settings.IsOpen, FallbackValue=False}">
-              <StackPanel Orientation="Horizontal" Spacing="11">
-                <ic:SymbolIcon Classes="navicon" Symbol="Settings" FontSize="18" VerticalAlignment="Center" />
-                <TextBlock Text="Settings" VerticalAlignment="Center" />
-              </StackPanel>
-            </Button>
           </StackPanel>
+
+          <!-- Saved chats, most recently used first. Choosing one reopens it. Shown only when the app keeps
+               chats (the demo does not). -->
+          <Grid x:Name="RecentPanel" RowDefinitions="Auto,*" Margin="0,0,0,10" IsVisible="{Binding HasHistory}">
+            <TextBlock Text="RECENT" FontSize="11" FontWeight="SemiBold" LetterSpacing="0.6" Margin="10,22,0,6"
+                       Foreground="{DynamicResource Tan}" />
+            <TextBlock x:Name="NoRecentChats" Grid.Row="1" Text="Your chats are kept here." FontSize="12"
+                       Margin="10,2,0,0" Foreground="{DynamicResource InkMuted}" TextWrapping="Wrap"
+                       IsVisible="{Binding !RecentChats.Count}" />
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+              <ItemsControl x:Name="RecentList" ItemsSource="{Binding RecentChats}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="2" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:RecentChatViewModel">
+                    <Panel>
+                      <Panel Classes="recentRow" IsVisible="{Binding !IsConfirmingDelete}">
+                        <Button Classes="nav recentChat" Classes.selected="{Binding IsCurrent}" Padding="10,6,34,6"
+                                Command="{Binding $parent[ItemsControl].((vm:ChatViewModel)DataContext).OpenChatCommand}"
+                                CommandParameter="{Binding}">
+                          <StackPanel Spacing="1">
+                            <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" FontSize="13" />
+                            <TextBlock Text="{Binding WhenText}" FontSize="11" FontWeight="Normal"
+                                       Foreground="{DynamicResource InkMuted}" />
+                          </StackPanel>
+                        </Button>
+                        <Button Classes="ghost deleteChat" Command="{Binding AskDeleteCommand}"
+                                AutomationProperties.Name="Delete this chat">
+                          <ic:SymbolIcon Symbol="Delete" FontSize="15" />
+                        </Button>
+                      </Panel>
+
+                      <!-- Deleting takes a second, deliberate click: a chat cannot be brought back. -->
+                      <Border Classes="confirmDelete" IsVisible="{Binding IsConfirmingDelete}">
+                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="5">
+                          <TextBlock Text="Delete?" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
+                                     Foreground="{DynamicResource Ink}" />
+                          <Button Grid.Column="1" Classes="confirmDeleteChat" Content="Delete"
+                                  Foreground="{DynamicResource DangerInk}"
+                                  Command="{Binding $parent[ItemsControl].((vm:ChatViewModel)DataContext).DeleteChatCommand}"
+                                  CommandParameter="{Binding}" />
+                          <Button Grid.Column="2" Classes="keepChat" Content="Keep" Command="{Binding KeepChatCommand}" />
+                        </Grid>
+                      </Border>
+                    </Panel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Grid>
         </DockPanel>
       </ThemeVariantScope>
     </Border>
@@ -249,14 +360,14 @@
 
             <!-- The mode of this session, always in view where the next message is written: read-only (off,
                  green) or changes allowed (on, amber). Flipping it restarts the connection in the other mode
-                 and starts a new conversation. MainWindow.axaml.cs keeps the switch and the session in step.
+                 and keeps the conversation. MainWindow.axaml.cs keeps the switch and the session in step.
                  The hint is placed above the switch, never under the pointer, so it cannot cover the switch
                  and swallow a click meant for it. -->
             <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"
                         HorizontalAlignment="Left"
                         IsVisible="{Binding CanSwitchMode}"
                         ToolTip.Placement="Top" ToolTip.VerticalOffset="-6"
-                        ToolTip.Tip="Off: the assistant can only read. On: it can propose changes, and each one still needs your approval. Switching starts a new conversation.">
+                        ToolTip.Tip="Off: the assistant can only read. On: it can propose changes, and each one still needs your approval. Switching reconnects and keeps the conversation.">
               <ToggleSwitch x:Name="ChangesToggle" OnContent="{x:Null}" OffContent="{x:Null}" MinWidth="0"
                             VerticalAlignment="Center">
                 <ToggleSwitch.Resources>

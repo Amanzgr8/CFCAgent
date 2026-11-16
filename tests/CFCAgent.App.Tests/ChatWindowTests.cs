@@ -91,7 +91,7 @@ public class ChatWindowTests
         MainWindow window = new MainWindow { DataContext = viewModel, Width = 900, Height = 420 };
         window.Show();
 
-        viewModel.Messages.Add(new ChatMessageViewModel(ChatAuthor.Notice, "Changes are now allowed. This started a new conversation."));
+        viewModel.Messages.Add(new ChatMessageViewModel(ChatAuthor.Notice, "Changes are now allowed. Nothing is applied unless you approve it."));
         viewModel.Messages.Add(new ChatMessageViewModel(ChatAuthor.Notice, "Could not connect: the database password was rejected", isError: true));
         Capture(window, "chat-notices");
 
@@ -120,7 +120,7 @@ public class ChatWindowTests
         viewModel.Messages.Add(new ChatMessageViewModel(
             ChatAuthor.Assistant,
             "**3 formulas** use `D066`:\n\n| Formula | Grade | Cost per ton |\n|---|---|---:|\n| F1001 | 10-10-10 | 549.42 |\n| F1002 | 28-0-0 | 478.53 |\n"));
-        viewModel.Messages.Add(new ChatMessageViewModel(ChatAuthor.Notice, "Back to read-only. This started a new conversation."));
+        viewModel.Messages.Add(new ChatMessageViewModel(ChatAuthor.Notice, "Back to read-only. The assistant can no longer change anything."));
         await SettleAsync(300);
 
         Button themeButton = window.FindControl<Button>("ThemeButton")!;

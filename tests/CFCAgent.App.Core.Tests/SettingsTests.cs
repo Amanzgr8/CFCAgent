@@ -420,11 +420,13 @@ public class SettingsTests : IDisposable
     {
         private readonly Action _onConnect;
         private readonly bool _fail;
+        private readonly Action<ChatSession>? _onSession;
 
-        public RecordingConnector(Action onConnect, bool fail = false)
+        public RecordingConnector(Action onConnect, bool fail = false, Action<ChatSession>? onSession = null)
         {
             _onConnect = onConnect;
             _fail = fail;
+            _onSession = onSession;
         }
 
         public Task<ChatConnection> ConnectAsync(CancellationToken cancellationToken)
@@ -436,8 +438,67 @@ public class SettingsTests : IDisposable
             }
 
             ChatSession session = new ChatSession(new StubChatClient(), Array.Empty<AITool>(), null);
+            _onSession?.Invoke(session);
             return Task.FromResult(new ChatConnection(session, "connected", Array.Empty<AITool>(), new ServerLogBuffer(), () => ValueTask.CompletedTask));
         }
+    }
+
+    [Fact]
+    public async Task SavingSettings_StartsANewConversation_UnlikeAModeSwitch()
+    {
+        List<ChatSession> sessions = new List<ChatSession>();
+        Func<bool, IChatConnector> factory = allow => new RecordingConnector(() => { }, onSession: sessions.Add);
+        ChatViewModel chat = new ChatViewModel();
+        chat.EnableModeSwitch(factory);
+        SettingsViewModel settings = NewSettings();
+        chat.AttachSettings(settings);
+        await chat.ConnectAsync(factory(false));
+        chat.Input = "what does D066 cost?";
+        await chat.SendCommand.ExecuteAsync(null);
+        Assert.Equal(2, chat.Messages.Count);
+
+        settings.Open();
+        settings.ConnectionString = Secret;
+        settings.SaveCommand.Execute(null);
+        await Task.Delay(100);
+
+        // New settings can point at a different database, so nothing said about the old one is carried over:
+        // not on screen, and not to the model.
+        Assert.True(chat.IsConnected);
+        Assert.Contains("new conversation", Assert.Single(chat.Messages).Text);
+        Assert.Equal(2, sessions.Count);
+        Assert.Empty(sessions[1].History);
+    }
+
+    [Fact]
+    public async Task SavingSettings_LeavesTheOldChatSaved_AndTheNextQuestionStartsAnotherOne()
+    {
+        Func<bool, IChatConnector> factory = allow => new RecordingConnector(() => { });
+        ChatViewModel chat = new ChatViewModel();
+        chat.EnableModeSwitch(factory);
+        chat.AttachHistory(new ConversationStore(Path.Combine(_folder, "conversations.db")));
+        SettingsViewModel settings = NewSettings();
+        chat.AttachSettings(settings);
+        await chat.ConnectAsync(factory(false));
+        chat.Input = "what does D066 cost?";
+        await chat.SendCommand.ExecuteAsync(null);
+
+        settings.Open();
+        settings.ConnectionString = Secret;
+        settings.SaveCommand.Execute(null);
+        await Task.Delay(100);
+
+        // The chat held against the old settings is still in the list, but it is no longer the open one.
+        RecentChatViewModel old = Assert.Single(chat.RecentChats);
+        Assert.False(old.IsCurrent);
+
+        chat.Input = "list the binders";
+        await chat.SendCommand.ExecuteAsync(null);
+
+        Assert.Equal(new[] { "list the binders", "what does D066 cost?" }, chat.RecentChats.Select(listed => listed.Title));
+        SavedConversation? first = new ConversationStore(Path.Combine(_folder, "conversations.db")).Load(old.Id);
+        Assert.NotNull(first);
+        Assert.Equal(2, first.Transcript.Count);
     }
 
     [Fact]

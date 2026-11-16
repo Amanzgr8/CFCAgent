@@ -24,6 +24,10 @@ public sealed class ChatConnection : IAsyncDisposable
 
     public string Description { get; }
 
+    // Which database setup this is connected to ("tenant 'x'"), when the connector knows. Saved with a
+    // conversation, so reopening it against a different setup can be pointed out.
+    public string? Source { get; init; }
+
     // The tools the model is offered (after any read-only filtering).
     public IReadOnlyList<AITool> Tools { get; }
 

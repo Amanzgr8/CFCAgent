@@ -25,6 +25,52 @@ public sealed class ChatSession
 
     public IReadOnlyList<ChatMessage> History => _history;
 
+    // Marks a message the app wrote into the conversation for the model to read (see ContinueFrom). It goes
+    // in as a user message, so the marker tells the model the user did not type it.
+    public const string AppNotePrefix = "[Notice from the app, not written by the user] ";
+
+    // Takes over the conversation of an earlier session, so a new connection can carry on where the old one
+    // stopped (the app does this when it restarts the server to switch between read-only and changes-allowed).
+    // Every earlier turn is kept. The earlier system prompt is not: this session keeps its own, which matches
+    // the tools it was given. noteForModel, if any, is added after the earlier turns to tell the model what
+    // changed. Only possible before the first message is sent.
+    public void ContinueFrom(IEnumerable<ChatMessage> earlierHistory, string? noteForModel = null)
+    {
+        if (_history.Any(message => message.Role != ChatRole.System))
+        {
+            throw new InvalidOperationException("A conversation can only be taken over before the first message is sent.");
+        }
+
+        List<ChatMessage> turns = earlierHistory.Where(message => message.Role != ChatRole.System).ToList();
+
+        // A note left by an earlier switch that no turn followed says nothing any more: only the newest counts.
+        while (turns.Count > 0 && IsAppNote(turns[^1]))
+        {
+            turns.RemoveAt(turns.Count - 1);
+        }
+
+        _history.AddRange(turns);
+
+        // With no earlier turns there is nothing to explain: the system prompt already describes this session.
+        if (turns.Count > 0 && !string.IsNullOrWhiteSpace(noteForModel))
+        {
+            _history.Add(new ChatMessage(ChatRole.User, AppNotePrefix + noteForModel));
+        }
+    }
+
+    // Forgets every turn and keeps the system prompt, so the same connection can start a new conversation, or
+    // take over a saved one with ContinueFrom, without restarting the server. Not to be called while a reply
+    // is arriving.
+    public void Clear()
+    {
+        _history.RemoveAll(message => message.Role != ChatRole.System);
+    }
+
+    private static bool IsAppNote(ChatMessage message)
+    {
+        return message.Role == ChatRole.User && message.Text.StartsWith(AppNotePrefix, StringComparison.Ordinal);
+    }
+
     // Sends one message and yields the model's reply piece by piece as it arrives, including any tool
     // calls and their results, so a caller can show text growing and tool activity live. This is the
     // only way to send a message: a caller that just wants the whole reply joins the pieces' Text.
